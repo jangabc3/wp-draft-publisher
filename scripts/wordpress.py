@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import sys
+import uuid
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -74,9 +75,12 @@ def upload_image(item):
     if not path.is_file():
         fail("image_not_found", str(path))
     mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    suffix = path.suffix.lower()
+    ascii_stem = "".join(ch for ch in path.stem if ch.isascii() and (ch.isalnum() or ch in "-_"))
+    upload_name = f"{ascii_stem or ('upload-' + uuid.uuid4().hex[:12])}{suffix}"
     media = api("POST", "media", path.read_bytes(), {
         "Content-Type": mime,
-        "Content-Disposition": f'attachment; filename="{path.name}"',
+        "Content-Disposition": f'attachment; filename="{upload_name}"',
     })
     update = {
         "alt_text": item.get("alt", ""),
