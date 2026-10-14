@@ -109,18 +109,26 @@ def load_payload(path):
 
 
 def prepare_post(payload):
-    required = ["title", "content", "featured_image", "inline_images", "seo"]
+    required = ["title", "content", "featured_image", "seo"]
     missing = [key for key in required if not payload.get(key)]
     if missing:
         fail("missing_payload_fields", missing)
-    inline = payload["inline_images"]
-    if len(inline) < 4:
-        fail("at_least_four_inline_images_required")
+    inline = payload.get("inline_images", [])
+    policy = payload.get("image_policy", {})
+    try:
+        minimum_total = int(policy.get("minimum_total", 1))
+        minimum_inline = int(policy.get("minimum_inline", 0))
+    except (TypeError, ValueError):
+        fail("invalid_image_policy")
+    if minimum_total < 1 or minimum_inline < 0:
+        fail("invalid_image_policy")
+    if len(inline) < minimum_inline:
+        fail("inline_image_policy_not_satisfied", {"required": minimum_inline, "supplied": len(inline)})
     identities = []
     for item in [payload["featured_image"], *inline]:
         identities.append(str(item.get("media_id") or Path(item.get("path", "")).resolve()).casefold())
-    if len(set(identities)) < 5:
-        fail("at_least_five_distinct_images_required")
+    if len(set(identities)) < minimum_total:
+        fail("total_image_policy_not_satisfied", {"required": minimum_total, "supplied": len(set(identities))})
 
     featured_id, _ = upload_image(payload["featured_image"])
     content = payload["content"]

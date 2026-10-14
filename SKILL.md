@@ -10,12 +10,12 @@ Use `scripts/run.ps1` for deterministic WordPress operations instead of browser 
 ## Workflow
 
 1. Follow the site's editorial requirements and [references/article-format.md](references/article-format.md).
-2. Prepare at least five distinct, useful images by default: one featured image and at least four inline images.
+2. Choose the image count from the article's length and instructional needs. Use a featured image and add inline images only where they improve understanding.
 3. Create a JSON payload using [references/payload-schema.md](references/payload-schema.md).
 4. Run `scripts/run.ps1 draft --input <absolute-json-path>`.
 5. Return the draft ID, preview URL, media count, and SEO status.
 
-The helper forces `status=draft`. It resolves or creates categories and tags, uploads media with alt text and captions, inserts valid figure markup at markers, sets the featured image, and attempts Rank Math metadata.
+The helper forces `status=draft`. It resolves or creates categories and tags, uploads media with alt text and captions, inserts valid figure markup at markers, sets the featured image, and attempts Rank Math metadata. Explicit minimums can be supplied through `image_policy` when needed.
 
 ## Existing drafts
 
@@ -28,6 +28,6 @@ Run `scripts/setup-credentials.ps1` in an interactive Windows terminal. Credenti
 ## Invariants
 
 - Never publish through this skill. Publishing requires a separately reviewed tool or explicit manual action.
-- Stop when fewer than five distinct images or fewer than four inline images are supplied.
+- Stop when an explicit payload image policy is not satisfied.
 - Stop on authentication or upload failure.
 - If `rank_math_rest_unavailable` is returned, keep the draft and explain that the site must expose the Rank Math fields through its REST API.

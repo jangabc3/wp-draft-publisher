@@ -10,5 +10,5 @@ Apply the site's own editorial guide when one exists. Otherwise:
 - Add only relevant internal links.
 - End with a concise practical recap.
 - Use an accurate SEO title, a useful meta description, and one natural focus keyword.
-- Default media requirement: at least five distinct images total, including a featured image and at least four inline images.
+- Choose the image count from the article's length and complexity. Use inline images only when they clarify the surrounding section.
 - Save as a draft.

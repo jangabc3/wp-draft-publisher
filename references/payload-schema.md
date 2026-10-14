@@ -21,6 +21,10 @@
       "caption": "One sentence explaining what the image demonstrates"
     }
   ],
+  "image_policy": {
+    "minimum_total": 1,
+    "minimum_inline": 0
+  },
   "seo": {
     "title": "SEO title",
     "description": "A concise and accurate meta description.",
@@ -29,4 +33,4 @@
 }
 ```
 
-For `featured_image` and each item in `inline_images`, an existing WordPress attachment `media_id` may be supplied instead of a new file `path`. The default guard requires at least five distinct images in total and at least four image markers in the body.
+For `featured_image` and each item in `inline_images`, an existing WordPress attachment `media_id` may be supplied instead of a new file `path`. Set `image_policy` only when the workflow requires explicit minimums. By default, one featured image is required and inline images are optional.
