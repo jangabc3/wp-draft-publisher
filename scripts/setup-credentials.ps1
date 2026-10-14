@@ -26,7 +26,7 @@ finally {
     $plainPassword = $null
 }
 
-$credentialDirectory = Join-Path $env:LOCALAPPDATA 'WordPressDraftPublisher'
+$credentialDirectory = Join-Path $env:LOCALAPPDATA 'WPDraftPublisher'
 $credentialPath = Join-Path $credentialDirectory 'credentials.json'
 New-Item -ItemType Directory -Force -Path $credentialDirectory | Out-Null
 

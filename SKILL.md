@@ -1,9 +1,9 @@
 ---
-name: wordpress-draft-publisher
+name: wp-draft-publisher
 description: Write, revise, and save WordPress articles through the official REST API with draft-first publishing, structured HTML, media uploads, taxonomy assignment, and optional Rank Math metadata. Use for self-hosted WordPress article workflows.
 ---
 
-# WordPress Draft Publisher
+# WP Draft Publisher
 
 Use `scripts/run.ps1` for deterministic WordPress operations instead of browser automation when the REST API can complete the task.
 

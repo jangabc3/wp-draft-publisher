@@ -1,4 +1,4 @@
-# WordPress Draft Publisher Skill
+# WP Draft Publisher Skill
 
 A small Codex skill for creating image-rich WordPress drafts through the official REST API. It replaces repetitive browser editing with one compact, deterministic operation.
 
@@ -26,7 +26,7 @@ The command intentionally has no publish operation.
 Copy this folder to:
 
 ```text
-%USERPROFILE%\.codex\skills\wordpress-draft-publisher
+%USERPROFILE%\.codex\skills\wp-draft-publisher
 ```
 
 Restart or open a new Codex conversation so the skill is discovered.
@@ -36,15 +36,15 @@ Restart or open a new Codex conversation so the skill is discovered.
 Run:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wordpress-draft-publisher\scripts\setup-credentials.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\setup-credentials.ps1"
 ```
 
-The application password is encrypted with Windows DPAPI and stored in `%LOCALAPPDATA%\WordPressDraftPublisher\credentials.json`. It is never stored in this repository.
+The application password is encrypted with Windows DPAPI and stored in `%LOCALAPPDATA%\WPDraftPublisher\credentials.json`. It is never stored in this repository.
 
 Verify the connection:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wordpress-draft-publisher\scripts\run.ps1" verify
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" verify
 ```
 
 ## Create a draft
@@ -52,7 +52,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex
 Prepare a payload using `references/payload-schema.md`, then run:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wordpress-draft-publisher\scripts\run.ps1" draft --input "C:\path\draft.json"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" draft --input "C:\path\draft.json"
 ```
 
 ## Rank Math
@@ -69,3 +69,7 @@ Rank Math metadata is sent as WordPress post meta. Some sites do not expose thes
 ## License
 
 MIT
+
+## Trademarks
+
+This is an independent community project. It is not affiliated with or endorsed by the WordPress Foundation, Automattic, Rank Math, or OpenAI. WordPress and related marks belong to their respective owners; references in this repository describe compatibility only.

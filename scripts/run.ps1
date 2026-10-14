@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$credentialPath = Join-Path $env:LOCALAPPDATA 'WordPressDraftPublisher\credentials.json'
+$credentialPath = Join-Path $env:LOCALAPPDATA 'WPDraftPublisher\credentials.json'
 if (-not (Test-Path -LiteralPath $credentialPath)) {
     throw 'Credentials are missing. Run setup-credentials.ps1 first.'
 }
