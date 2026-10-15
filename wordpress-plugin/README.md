@@ -7,7 +7,7 @@ This optional WordPress plugin adds two narrowly scoped capabilities:
 
 ## Install
 
-1. Download `dist/wp-draft-publisher-bridge.zip` from this repository.
+1. Download `dist/draft-publisher-rest-bridge.zip` from this repository.
 2. In WordPress, open **Plugins → Add New → Upload Plugin**.
 3. Upload the ZIP, install it, and activate **Draft Publisher REST Bridge**.
 4. Run `scripts/run.ps1 doctor` and confirm that `checks.bridge.ok` and `atomic_draft_guard` are `true`.

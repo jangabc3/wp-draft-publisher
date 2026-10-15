@@ -5,8 +5,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PLUGIN_NAME = "wp-draft-publisher-bridge"
-SOURCE = ROOT / "wordpress-plugin" / PLUGIN_NAME
+SOURCE_NAME = "wp-draft-publisher-bridge"
+PLUGIN_NAME = "draft-publisher-rest-bridge"
+SOURCE = ROOT / "wordpress-plugin" / SOURCE_NAME
 DIST = ROOT / "dist"
 ARCHIVE = DIST / f"{PLUGIN_NAME}.zip"
 

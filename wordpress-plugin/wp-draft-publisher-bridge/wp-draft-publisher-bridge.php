@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Draft Publisher REST Bridge
  * Description: Exposes permission-checked SEO metadata and an atomic draft-only REST update guard for WP Draft Publisher.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPL-2.0-or-later
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('WPDP_BRIDGE_VERSION', '1.0.1');
+define('WPDP_BRIDGE_VERSION', '1.0.2');
 
 /**
  * Limit registered fields to the Rank Math values used by the publisher.

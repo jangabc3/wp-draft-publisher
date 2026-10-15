@@ -18,11 +18,11 @@ SPEC.loader.exec_module(wordpress)
 
 class PluginSourceTests(unittest.TestCase):
     def test_distribution_zip_uses_portable_forward_slash_paths(self):
-        archive = ROOT / "dist" / "wp-draft-publisher-bridge.zip"
+        archive = ROOT / "dist" / "draft-publisher-rest-bridge.zip"
         with zipfile.ZipFile(archive) as package:
             names = package.namelist()
         self.assertIn(
-            "wp-draft-publisher-bridge/wp-draft-publisher-bridge.php", names
+            "draft-publisher-rest-bridge/wp-draft-publisher-bridge.php", names
         )
         self.assertTrue(all("\\" not in name for name in names))
 

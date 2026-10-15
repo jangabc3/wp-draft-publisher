@@ -2,7 +2,7 @@
 Contributors: wp-draft-publisher
 Requires at least: 5.6
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,6 +19,9 @@ This small companion plugin exposes only the three Rank Math post-meta fields us
 3. Confirm that the bridge and atomic draft guard are reported as available.
 
 == Changelog ==
+
+= 1.0.2 =
+* Use a conflict-free installation directory for sites affected by an incomplete prior upload.
 
 = 1.0.1 =
 * Register SEO metadata after Rank Math so REST visibility remains enabled.
