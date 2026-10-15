@@ -6,6 +6,7 @@ A small Codex skill for creating image-rich WordPress drafts through the officia
 
 - Creates and updates drafts
 - Refuses to update published, private, scheduled, pending, or trashed posts
+- Validates the complete payload and every image before the first server mutation
 - Uploads a featured image and inline images
 - Adds alt text and captions
 - Resolves or creates categories and tags
@@ -67,6 +68,10 @@ python -m unittest discover -s tests -v
 ```
 
 GitHub Actions runs the suite on Python 3.9 and 3.13 on Windows and Ubuntu.
+
+## Preflight validation
+
+Before uploading media or creating taxonomy terms, the helper validates required text and SEO fields, taxonomy arrays, image policy values, image sources, alt text, marker uniqueness, and exact marker placement. Local files must use absolute paths and contain a valid JPEG, PNG, GIF, WebP, or AVIF signature. Existing WordPress media IDs are resolved with read-only requests before any upload begins. SVG and extension-spoofed files are rejected.
 
 ## Rank Math
 

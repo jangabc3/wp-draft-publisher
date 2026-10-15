@@ -166,7 +166,6 @@ class PreparationTests(unittest.TestCase):
 
     def test_inline_marker_is_replaced_once_with_safe_figure(self):
         value = payload()
-        value["content"] += "{{ONE}}"
         with patch.object(
             wordpress,
             "upload_image",
@@ -174,13 +173,15 @@ class PreparationTests(unittest.TestCase):
                 (10, "https://example.test/featured.jpg"),
                 (11, "https://example.test/inline.jpg"),
             ],
-        ), patch.object(wordpress, "ensure_term", side_effect=[3, 4]):
+        ), patch.object(wordpress, "ensure_term", side_effect=[3, 4]), patch.object(
+            wordpress, "preflight_existing_media", return_value={}
+        ):
             post, uploaded, meta = wordpress.prepare_post(value)
         self.assertEqual(post["categories"], [3])
         self.assertEqual(post["tags"], [4])
         self.assertEqual(uploaded, [10, 11])
         self.assertEqual(post["content"].count("<figure"), 1)
-        self.assertEqual(post["content"].count("{{ONE}}"), 1)
+        self.assertNotIn("{{ONE}}", post["content"])
         self.assertIn("A &amp; &quot;B&quot;", post["content"])
         self.assertEqual(meta["rank_math_focus_keyword"], "키워드")
 

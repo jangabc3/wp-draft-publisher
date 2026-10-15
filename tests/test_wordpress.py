@@ -184,7 +184,9 @@ class CreateDraftTests(PayloadFileMixin, unittest.TestCase):
             wordpress,
             "upload_image",
             return_value=(11, "https://example.test/a.jpg"),
-        ), patch.object(wordpress, "ensure_term"):
+        ), patch.object(wordpress, "ensure_term"), patch.object(
+            wordpress, "preflight_existing_media", return_value={}
+        ):
             post, uploaded, meta = wordpress.prepare_post(valid_payload())
 
         self.assertEqual(post["status"], "draft")
@@ -197,7 +199,9 @@ class CreateDraftTests(PayloadFileMixin, unittest.TestCase):
             wordpress,
             "upload_image",
             return_value=(11, "https://example.test/a.jpg"),
-        ), patch.object(wordpress, "ensure_term"):
+        ), patch.object(wordpress, "ensure_term"), patch.object(
+            wordpress, "preflight_existing_media", return_value={}
+        ):
             post, _, _ = wordpress.prepare_post(valid_payload(), include_status=False)
         self.assertNotIn("status", post)
 

@@ -17,6 +17,8 @@ Use `scripts/run.ps1` for deterministic WordPress operations instead of browser 
 
 The helper forces `status=draft`. It resolves or creates categories and tags, uploads media with alt text and captions, inserts valid figure markup at markers, sets the featured image, and attempts Rank Math metadata. Explicit minimums can be supplied through `image_policy` when needed.
 
+The helper performs complete local payload validation and read-only validation of referenced WordPress media before its first server mutation. Do not bypass preflight failures or substitute unvalidated direct API writes.
+
 ## Existing drafts
 
 Use `scripts/run.ps1 update-draft --id <post-id> --input <absolute-json-path>`. Reuse `media_id` values to avoid duplicate uploads. The helper verifies that the target still has `draft` status before any media or taxonomy mutation and refuses every other status. It never sends a status change when updating.

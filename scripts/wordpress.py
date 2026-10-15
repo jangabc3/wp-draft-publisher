@@ -100,9 +100,13 @@ def ensure_term(kind, name):
     return api("POST", kind, {"name": name})["id"]
 
 
-def upload_image(item):
+def upload_image(item, media_cache=None):
     if item.get("media_id"):
-        media = api("GET", f"media/{int(item['media_id'])}", query={"context": "edit"})
+        media_id = int(item["media_id"])
+        if media_cache is not None and media_id in media_cache:
+            media = media_cache[media_id]
+        else:
+            media = api("GET", f"media/{media_id}", query={"context": "edit"})
         return media["id"], media.get("source_url", "")
     path = Path(item.get("path", ""))
     if not path.is_file():
@@ -141,36 +145,169 @@ def load_payload(path):
         fail("invalid_payload", str(exc))
 
 
-def prepare_post(payload, include_status=True):
+def require_nonempty_string(value, field):
+    if not isinstance(value, str) or not value.strip():
+        fail("invalid_payload_field", field)
+
+
+def validate_name_list(payload, field):
+    values = payload.get(field, [])
+    if not isinstance(values, list):
+        fail("invalid_payload_field", field)
+    seen = set()
+    for index, value in enumerate(values):
+        require_nonempty_string(value, f"{field}[{index}]")
+        normalized = value.strip().casefold()
+        if normalized in seen:
+            fail("duplicate_term_name", {"field": field, "name": value})
+        seen.add(normalized)
+
+
+def detect_supported_image_mime(path):
+    try:
+        with path.open("rb") as image_file:
+            header = image_file.read(32)
+    except OSError as exc:
+        fail("image_not_readable", str(exc))
+    suffix = path.suffix.lower()
+    if suffix in (".jpg", ".jpeg", ".jpe", ".jfif") and header.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if suffix == ".png" and header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if suffix == ".gif" and header.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if suffix == ".webp" and header.startswith(b"RIFF") and header[8:12] == b"WEBP":
+        return "image/webp"
+    if suffix == ".avif" and header[4:8] == b"ftyp" and any(
+        brand in header[8:32] for brand in (b"avif", b"avis")
+    ):
+        return "image/avif"
+    fail("unsupported_or_invalid_image", str(path))
+
+
+def validate_media_item(item, field):
+    if not isinstance(item, dict):
+        fail("invalid_payload_field", field)
+    has_media_id = "media_id" in item and item.get("media_id") is not None
+    has_path = "path" in item and bool(item.get("path"))
+    if has_media_id == has_path:
+        fail("invalid_media_source", field)
+    require_nonempty_string(item.get("alt"), f"{field}.alt")
+    for optional in ("caption", "title"):
+        if optional in item and not isinstance(item[optional], str):
+            fail("invalid_payload_field", f"{field}.{optional}")
+    if has_media_id:
+        media_id = item.get("media_id")
+        if isinstance(media_id, bool) or not isinstance(media_id, int) or media_id < 1:
+            fail("invalid_media_id", field)
+        return f"media:{media_id}"
+    path_value = item.get("path")
+    if not isinstance(path_value, str) or not path_value.strip():
+        fail("invalid_payload_field", f"{field}.path")
+    path = Path(path_value)
+    if not path.is_absolute():
+        fail("image_path_not_absolute", str(path))
+    if not path.is_file():
+        fail("image_not_found", str(path))
+    try:
+        if path.stat().st_size < 1:
+            fail("image_file_empty", str(path))
+    except OSError as exc:
+        fail("image_not_readable", str(exc))
+    detect_supported_image_mime(path)
+    return f"path:{str(path.resolve()).casefold()}"
+
+
+def validate_payload(payload):
+    if not isinstance(payload, dict):
+        fail("invalid_payload", "root_must_be_object")
     required = ["title", "content", "featured_image", "seo"]
     missing = [key for key in required if not payload.get(key)]
     if missing:
         fail("missing_payload_fields", missing)
+    require_nonempty_string(payload["title"], "title")
+    require_nonempty_string(payload["content"], "content")
+    for optional in ("slug", "excerpt"):
+        if optional in payload and not isinstance(payload[optional], str):
+            fail("invalid_payload_field", optional)
+    validate_name_list(payload, "category_names")
+    validate_name_list(payload, "tag_names")
+
+    seo = payload["seo"]
+    if not isinstance(seo, dict):
+        fail("invalid_payload_field", "seo")
+    for field in ("title", "description", "focus_keyword"):
+        require_nonempty_string(seo.get(field), f"seo.{field}")
+
     inline = payload.get("inline_images", [])
+    if not isinstance(inline, list):
+        fail("invalid_payload_field", "inline_images")
     policy = payload.get("image_policy", {})
-    try:
-        minimum_total = int(policy.get("minimum_total", 1))
-        minimum_inline = int(policy.get("minimum_inline", 0))
-    except (TypeError, ValueError):
+    if not isinstance(policy, dict):
+        fail("invalid_image_policy")
+    minimum_total = policy.get("minimum_total", 1)
+    minimum_inline = policy.get("minimum_inline", 0)
+    if (
+        isinstance(minimum_total, bool)
+        or not isinstance(minimum_total, int)
+        or isinstance(minimum_inline, bool)
+        or not isinstance(minimum_inline, int)
+    ):
         fail("invalid_image_policy")
     if minimum_total < 1 or minimum_inline < 0:
         fail("invalid_image_policy")
     if len(inline) < minimum_inline:
         fail("inline_image_policy_not_satisfied", {"required": minimum_inline, "supplied": len(inline)})
-    identities = []
-    for item in [payload["featured_image"], *inline]:
-        identities.append(str(item.get("media_id") or Path(item.get("path", "")).resolve()).casefold())
+
+    identities = [validate_media_item(payload["featured_image"], "featured_image")]
+    markers = set()
+    content = payload["content"]
+    for index, item in enumerate(inline):
+        field = f"inline_images[{index}]"
+        identity = validate_media_item(item, field)
+        identities.append(identity)
+        marker = item.get("marker")
+        require_nonempty_string(marker, f"{field}.marker")
+        if marker in markers:
+            fail("duplicate_image_marker", marker)
+        markers.add(marker)
+        occurrences = content.count(marker)
+        if occurrences != 1:
+            fail(
+                "image_marker_count_invalid",
+                {"marker": marker, "expected": 1, "found": occurrences},
+            )
     if len(set(identities)) < minimum_total:
         fail("total_image_policy_not_satisfied", {"required": minimum_total, "supplied": len(set(identities))})
+    return payload
 
-    featured_id, _ = upload_image(payload["featured_image"])
+
+def preflight_existing_media(items):
+    media_cache = {}
+    for item in items:
+        if not item.get("media_id"):
+            continue
+        media_id = int(item["media_id"])
+        if media_id in media_cache:
+            continue
+        media = api("GET", f"media/{media_id}", query={"context": "edit"})
+        if media.get("id") != media_id or not media.get("source_url"):
+            fail("invalid_media_response", media_id)
+        media_cache[media_id] = media
+    return media_cache
+
+
+def prepare_post(payload, include_status=True):
+    validate_payload(payload)
+    inline = payload.get("inline_images", [])
+    media_cache = preflight_existing_media([payload["featured_image"], *inline])
+
+    featured_id, _ = upload_image(payload["featured_image"], media_cache)
     content = payload["content"]
     uploaded = [featured_id]
     for item in inline:
-        marker = item.get("marker", "")
-        if not marker or marker not in content:
-            fail("image_marker_missing_from_content", marker)
-        media_id, url = upload_image(item)
+        marker = item["marker"]
+        media_id, url = upload_image(item, media_cache)
         uploaded.append(media_id)
         content = content.replace(marker, figure(url, item.get("alt", ""), item.get("caption", "")), 1)
 
