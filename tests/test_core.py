@@ -190,7 +190,7 @@ class ApiTests(unittest.TestCase):
         with patch.object(wordpress, "SITE", ""), patch.object(
             wordpress, "USER", ""
         ), patch.object(wordpress, "PASSWORD", ""), patch.object(
-            wordpress, "urlopen"
+            wordpress, "OPEN_URL"
         ) as opener, redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
             wordpress.api("GET", "posts")
         opener.assert_not_called()
@@ -202,7 +202,7 @@ class ApiTests(unittest.TestCase):
         with patch.object(wordpress, "SITE", "https://example.test"), patch.object(
             wordpress, "USER", "writer"
         ), patch.object(wordpress, "PASSWORD", "secret"), patch.object(
-            wordpress, "urlopen", return_value=response
+            wordpress, "OPEN_URL", return_value=response
         ) as opener:
             result = wordpress.api("POST", "posts", {"title": "한글"})
         self.assertEqual(result, {"id": 1})
@@ -211,6 +211,98 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(request.get_header("Authorization"), f"Basic {expected}")
         self.assertEqual(json.loads(request.data.decode("utf-8")), {"title": "한글"})
         self.assertEqual(request.method, "POST")
+
+
+class SiteUrlSecurityTests(unittest.TestCase):
+    def assert_invalid(self, value, reason):
+        output = io.StringIO()
+        with redirect_stdout(output), self.assertRaises(SystemExit):
+            wordpress.validate_site_url(value)
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["error"], "invalid_site_url")
+        self.assertEqual(result["details"], reason)
+
+    def test_standard_https_urls_are_accepted(self):
+        cases = {
+            "https://example.test": "https://example.test",
+            " https://example.test/ ": "https://example.test",
+            "https://example.test:443": "https://example.test:443",
+            "https://example.test/wordpress/": "https://example.test/wordpress",
+        }
+        for value, expected in cases.items():
+            with self.subTest(value=value):
+                self.assertEqual(wordpress.validate_site_url(value), expected)
+
+    def test_missing_or_malformed_urls_are_rejected(self):
+        for value, reason in (
+            ("", "missing_url"),
+            (None, "missing_url"),
+            ("https://", "missing_host"),
+            ("https://example.test:invalid", "malformed_url"),
+        ):
+            with self.subTest(value=value):
+                self.assert_invalid(value, reason)
+
+    def test_non_https_schemes_are_rejected(self):
+        for value in (
+            "http://example.test",
+            "ftp://example.test",
+            "//example.test",
+        ):
+            with self.subTest(value=value):
+                self.assert_invalid(value, "https_required")
+
+    def test_embedded_credentials_are_rejected(self):
+        for value in (
+            "https://writer@example.test",
+            "https://writer:secret@example.test",
+            "https://writer%3Asecret@example.test",
+        ):
+            with self.subTest(value=value):
+                self.assert_invalid(value, "embedded_credentials_not_allowed")
+
+    def test_query_fragment_and_nonstandard_port_are_rejected(self):
+        self.assert_invalid(
+            "https://example.test?next=https://evil.test",
+            "query_or_fragment_not_allowed",
+        )
+        self.assert_invalid(
+            "https://example.test/#section", "query_or_fragment_not_allowed"
+        )
+        self.assert_invalid(
+            "https://example.test:8443", "nonstandard_port_not_allowed"
+        )
+
+    def test_ambiguous_characters_are_rejected(self):
+        for value in (
+            "https://example.test/path with space",
+            "https://example.test\\@evil.test",
+            "https://example.test\n.evil.test",
+        ):
+            with self.subTest(value=value):
+                self.assert_invalid(value, "invalid_characters")
+
+    def test_redirect_handler_never_creates_followup_request(self):
+        handler = wordpress.NoRedirectHandler()
+        self.assertIsNone(
+            handler.redirect_request(
+                MagicMock(),
+                None,
+                302,
+                "Found",
+                {},
+                "https://evil.test/steal",
+            )
+        )
+
+    def test_invalid_site_never_reaches_network(self):
+        with patch.object(wordpress, "SITE", "http://example.test"), patch.object(
+            wordpress, "USER", "writer"
+        ), patch.object(wordpress, "PASSWORD", "secret"), patch.object(
+            wordpress, "OPEN_URL"
+        ) as opener, redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+            wordpress.api("GET", "users/me")
+        opener.assert_not_called()
 
 
 if __name__ == "__main__":

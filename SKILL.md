@@ -25,6 +25,8 @@ Use `scripts/run.ps1 update-draft --id <post-id> --input <absolute-json-path>`. 
 
 Run `scripts/setup-credentials.ps1` in an interactive Windows terminal. Credentials are encrypted with Windows DPAPI and stored outside the repository. Never request, print, commit, or paste application passwords into chat.
 
+The helper accepts only HTTPS site URLs on port 443 and refuses redirects, embedded URL credentials, queries, fragments, and ambiguous URL characters. Do not bypass these checks.
+
 ## Invariants
 
 - Never publish through this skill. Publishing requires a separately reviewed tool or explicit manual action.

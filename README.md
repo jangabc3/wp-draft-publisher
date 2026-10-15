@@ -74,6 +74,9 @@ Rank Math metadata is sent as WordPress post meta. Some sites do not expose thes
 
 ## Security
 
+- Configuration and runtime validation require HTTPS on the standard port 443.
+- Site URLs containing embedded credentials, query strings, fragments, whitespace, backslashes, or nonstandard ports are rejected before a network request.
+- HTTP redirects are not followed, preventing the Authorization header from being replayed to a redirected destination.
 - Use a dedicated WordPress user with only the permissions required for drafting and media uploads.
 - Revoke its Application Password when access is no longer needed.
 - Review every draft in WordPress before publishing.

@@ -8,13 +8,21 @@ import sys
 import uuid
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import urlencode, urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 SITE = os.environ.get("IK_WP_SITE_URL", "").rstrip("/")
 USER = os.environ.get("IK_WP_USERNAME", "")
 PASSWORD = os.environ.get("IK_WP_APP_PASSWORD", "")
+
+
+class NoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+OPEN_URL = build_opener(NoRedirectHandler()).open
 
 
 def fail(message, details=None):
@@ -25,10 +33,35 @@ def fail(message, details=None):
     raise SystemExit(1)
 
 
+def validate_site_url(value):
+    candidate = value.strip().rstrip("/") if isinstance(value, str) else ""
+    if not candidate:
+        fail("invalid_site_url", "missing_url")
+    if any(character.isspace() for character in candidate) or "\\" in candidate:
+        fail("invalid_site_url", "invalid_characters")
+    try:
+        parsed = urlsplit(candidate)
+        port = parsed.port
+    except ValueError:
+        fail("invalid_site_url", "malformed_url")
+    if parsed.scheme.lower() != "https":
+        fail("invalid_site_url", "https_required")
+    if not parsed.hostname:
+        fail("invalid_site_url", "missing_host")
+    if parsed.username is not None or parsed.password is not None:
+        fail("invalid_site_url", "embedded_credentials_not_allowed")
+    if parsed.query or parsed.fragment:
+        fail("invalid_site_url", "query_or_fragment_not_allowed")
+    if port not in (None, 443):
+        fail("invalid_site_url", "nonstandard_port_not_allowed")
+    return candidate
+
+
 def api(method, endpoint, data=None, headers=None, query=None, soft=False):
     if not (SITE and USER and PASSWORD):
         fail("missing_credentials")
-    url = f"{SITE}/wp-json/wp/v2/{endpoint.lstrip('/')}"
+    site_url = validate_site_url(SITE)
+    url = f"{site_url}/wp-json/wp/v2/{endpoint.lstrip('/')}"
     if query:
         url += "?" + urlencode(query)
     auth = base64.b64encode(f"{USER}:{PASSWORD}".encode()).decode()
@@ -41,7 +74,7 @@ def api(method, endpoint, data=None, headers=None, query=None, soft=False):
         request_headers["Content-Type"] = "application/json; charset=utf-8"
     req = Request(url, data=body, headers=request_headers, method=method)
     try:
-        with urlopen(req, timeout=90) as response:
+        with OPEN_URL(req, timeout=90) as response:
             raw = response.read()
             return json.loads(raw.decode("utf-8")) if raw else {}
     except HTTPError as exc:
@@ -201,7 +234,7 @@ def save_draft(payload_path, post_id=None):
         "id": result.get("id"),
         "status": result.get("status"),
         "link": result.get("link"),
-        "preview_url": f"{SITE}/?p={result.get('id')}&preview=true",
+        "preview_url": f"{validate_site_url(SITE)}/?p={result.get('id')}&preview=true",
         "media_count": len(set(uploaded)),
         "seo_status": "saved" if seo_ok else "rank_math_rest_unavailable",
     }
