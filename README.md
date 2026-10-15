@@ -61,6 +61,22 @@ Prepare a payload using `references/payload-schema.md`, then run:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" draft --input "C:\path\draft.json"
 ```
 
+## Diagnose and inspect
+
+Run a read-only capability check before using a new site or account:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" doctor
+```
+
+Inspect one post without returning its full body:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" inspect --id 123
+```
+
+Both commands issue authenticated `GET` requests only. `doctor` reports authentication and read access for posts, media, categories, and tags. `inspect` returns a compact status, taxonomy, featured-image, and SEO-presence summary.
+
 ## Preview without changes
 
 Run the full validation and inspect planned media and taxonomy actions without creating or updating anything:

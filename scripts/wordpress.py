@@ -533,6 +533,71 @@ def cleanup_created_media(media_ids):
     return failures
 
 
+def doctor():
+    validate_site_url(SITE)
+    if not (USER and PASSWORD):
+        fail("missing_credentials")
+    probes = {
+        "authentication": ("users/me", {"context": "edit", "_fields": "id,name,roles"}),
+        "posts_read": ("posts", {"context": "edit", "per_page": 1, "_fields": "id,status"}),
+        "media_read": ("media", {"context": "edit", "per_page": 1, "_fields": "id"}),
+        "categories_read": ("categories", {"context": "edit", "per_page": 1, "_fields": "id"}),
+        "tags_read": ("tags", {"context": "edit", "per_page": 1, "_fields": "id"}),
+    }
+    checks = {}
+    user = {}
+    for name, (endpoint, query) in probes.items():
+        result = api("GET", endpoint, query=query, soft=True)
+        checks[name] = {"ok": not bool(result.get("_error")) if isinstance(result, dict) else True}
+        if isinstance(result, dict) and result.get("_error"):
+            checks[name]["error"] = result["_error"]
+        if name == "authentication" and checks[name]["ok"]:
+            user = {"id": result.get("id"), "name": result.get("name"), "roles": result.get("roles", [])}
+    output = {
+        "ok": all(check["ok"] for check in checks.values()),
+        "read_only": True,
+        "site": validate_site_url(SITE),
+        "user": user,
+        "checks": checks,
+    }
+    print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
+
+
+def inspect_post(post_id):
+    if isinstance(post_id, bool) or not isinstance(post_id, int) or post_id < 1:
+        fail("invalid_post_id", post_id)
+    post = api(
+        "GET",
+        f"posts/{post_id}",
+        query={
+            "context": "edit",
+            "_fields": "id,status,slug,title,modified,featured_media,categories,tags,meta,link",
+        },
+    )
+    meta = post.get("meta", {}) if isinstance(post.get("meta"), dict) else {}
+    output = {
+        "ok": True,
+        "read_only": True,
+        "post": {
+            "id": post.get("id"),
+            "status": post.get("status"),
+            "slug": post.get("slug"),
+            "title": post.get("title", {}).get("raw") or post.get("title", {}).get("rendered", ""),
+            "modified": post.get("modified"),
+            "featured_media": post.get("featured_media"),
+            "category_ids": post.get("categories", []),
+            "tag_ids": post.get("tags", []),
+            "link": post.get("link"),
+            "seo": {
+                "title_saved": bool(meta.get("rank_math_title")),
+                "description_saved": bool(meta.get("rank_math_description")),
+                "focus_keyword_saved": bool(meta.get("rank_math_focus_keyword")),
+            },
+        },
+    }
+    print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
+
+
 def save_draft(payload_path, post_id=None):
     if post_id is not None:
         assert_draft_post(post_id)
@@ -607,6 +672,9 @@ def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("verify")
+    sub.add_parser("doctor")
+    inspect = sub.add_parser("inspect")
+    inspect.add_argument("--id", required=True, type=int)
     draft = sub.add_parser("draft")
     draft.add_argument("--input", required=True)
     update = sub.add_parser("update-draft")
@@ -619,6 +687,10 @@ def main():
     if args.command == "verify":
         me = api("GET", "users/me", query={"context": "edit"})
         print(json.dumps({"ok": True, "id": me.get("id"), "name": me.get("name"), "roles": me.get("roles", [])}, ensure_ascii=False, separators=(",", ":")))
+    elif args.command == "doctor":
+        doctor()
+    elif args.command == "inspect":
+        inspect_post(args.id)
     elif args.command == "draft":
         save_draft(args.input)
     elif args.command == "dry-run":

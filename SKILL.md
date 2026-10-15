@@ -11,10 +11,11 @@ Use `scripts/run.ps1` for deterministic WordPress operations instead of browser 
 
 1. Follow the site's editorial requirements and [references/article-format.md](references/article-format.md).
 2. Choose the image count from the article's length and instructional needs. Use a featured image and add inline images only where they improve understanding.
-3. Create a JSON payload using [references/payload-schema.md](references/payload-schema.md).
-4. Use `scripts/run.ps1 dry-run --input <absolute-json-path>` when the user requests a preview, when checking a new site, or after changing payload-generation logic.
-5. Give every article a stable, non-empty slug, then run `scripts/run.ps1 draft --input <absolute-json-path>`.
-6. Return the draft ID, preview URL, media count, and SEO status.
+3. On a new site or after a permission change, run `scripts/run.ps1 doctor`. It is read-only.
+4. Create a JSON payload using [references/payload-schema.md](references/payload-schema.md).
+5. Use `scripts/run.ps1 dry-run --input <absolute-json-path>` when the user requests a preview, when checking a new site, or after changing payload-generation logic.
+6. Give every article a stable, non-empty slug, then run `scripts/run.ps1 draft --input <absolute-json-path>`.
+7. Return the draft ID, preview URL, media count, and SEO status. Use `scripts/run.ps1 inspect --id <post-id>` for compact read-only verification.
 
 The helper forces `status=draft`. It resolves or creates categories and tags, uploads media with alt text and captions, inserts valid figure markup at markers, sets the featured image, and attempts Rank Math metadata. Repeated creates reuse an existing draft with the exact slug. Byte-identical local images are reused by SHA-256 content hash. Explicit minimums can be supplied through `image_policy` when needed.
 
