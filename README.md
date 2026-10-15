@@ -5,6 +5,8 @@ A small Codex skill for creating image-rich WordPress drafts through the officia
 ## What it does
 
 - Creates and updates drafts
+- Reuses an existing draft with the same slug instead of creating a duplicate
+- Reuses local images by SHA-256 content hash
 - Refuses to update published, private, scheduled, pending, or trashed posts
 - Validates the complete payload and every image before the first server mutation
 - Uploads a featured image and inline images
@@ -74,6 +76,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex
 Dry-run may issue authenticated `GET` requests to verify the target draft, existing media, categories, and tags. It never sends `POST`, `PUT`, `PATCH`, or `DELETE` requests and returns `"would_mutate": false`.
 
 `update-draft` first verifies that the target is still a draft. It stops before uploading media or changing taxonomy when the post has any other status. Update requests also omit the WordPress `status` field, so this tool cannot turn an existing public post back into a draft.
+
+Every payload must include a stable, non-empty `slug`. A repeated `draft` command returns the existing draft with that exact slug without uploading media or changing content. A slug owned by a published, scheduled, private, pending, or trashed post is treated as a conflict. Local images use deterministic `wpdp-<sha256>` media slugs, so byte-identical files are reused even when their local filenames differ.
 
 ## Tests
 

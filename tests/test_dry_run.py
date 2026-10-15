@@ -70,8 +70,12 @@ class DryRunTests(unittest.TestCase):
 
         def fake_api(method, endpoint, data=None, headers=None, query=None, soft=False):
             requests.append((method, endpoint, data))
+            if endpoint == "posts":
+                return []
             if endpoint == "media/10":
                 return {"id": 10, "source_url": "https://example.test/10.jpg"}
+            if endpoint == "media":
+                return []
             if endpoint == "categories":
                 if query["search"] == "Guides":
                     return [{"id": 3, "name": "Guides"}]
@@ -109,6 +113,8 @@ class DryRunTests(unittest.TestCase):
 
         def fake_api(method, endpoint, data=None, headers=None, query=None, soft=False):
             requests.append((method, endpoint, data))
+            if endpoint == "posts":
+                return []
             if endpoint == "posts/42":
                 return {"id": 42, "status": "draft"}
             if endpoint == "media/10":
@@ -152,13 +158,15 @@ class DryRunTests(unittest.TestCase):
 
         def fake_api(method, endpoint, data=None, headers=None, query=None, soft=False):
             requests.append((method, endpoint))
+            if endpoint == "posts":
+                return []
             return {"id": 999, "source_url": "https://example.test/wrong.jpg"}
 
         with patch.object(wordpress, "api", side_effect=fake_api), redirect_stdout(
             io.StringIO()
         ), self.assertRaises(SystemExit):
             wordpress.dry_run(payload_path)
-        self.assertEqual(requests, [("GET", "media/10")])
+        self.assertEqual(requests, [("GET", "posts"), ("GET", "media/10")])
 
 
 if __name__ == "__main__":

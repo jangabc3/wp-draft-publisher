@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import base64
+import hashlib
 import json
 import mimetypes
 import os
 import sys
-import uuid
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
@@ -115,8 +115,9 @@ def ensure_term(kind, name):
 def upload_image(item, media_cache=None):
     if item.get("media_id"):
         media_id = int(item["media_id"])
-        if media_cache is not None and media_id in media_cache:
-            media = media_cache[media_id]
+        cache_key = f"media:{media_id}"
+        if media_cache is not None and cache_key in media_cache:
+            media = media_cache[cache_key]
         else:
             media = api("GET", f"media/{media_id}", query={"context": "edit"})
         return media["id"], media.get("source_url", "")
@@ -124,9 +125,13 @@ def upload_image(item, media_cache=None):
     if not path.is_file():
         fail("image_not_found", str(path))
     mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    digest = file_sha256(path)
+    cache_key = f"hash:{digest}"
+    if media_cache is not None and cache_key in media_cache:
+        media = media_cache[cache_key]
+        return media["id"], media.get("source_url", "")
     suffix = path.suffix.lower()
-    ascii_stem = "".join(ch for ch in path.stem if ch.isascii() and (ch.isalnum() or ch in "-_"))
-    upload_name = f"{ascii_stem or ('upload-' + uuid.uuid4().hex[:12])}{suffix}"
+    upload_name = f"wpdp-{digest}{suffix}"
     media = api("POST", "media", path.read_bytes(), {
         "Content-Type": mime,
         "Content-Disposition": f'attachment; filename="{upload_name}"',
@@ -160,6 +165,17 @@ def load_payload(path):
 def require_nonempty_string(value, field):
     if not isinstance(value, str) or not value.strip():
         fail("invalid_payload_field", field)
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError as exc:
+        fail("image_not_readable", str(exc))
+    return digest.hexdigest()
 
 
 def validate_name_list(payload, field):
@@ -239,9 +255,9 @@ def validate_payload(payload):
         fail("missing_payload_fields", missing)
     require_nonempty_string(payload["title"], "title")
     require_nonempty_string(payload["content"], "content")
-    for optional in ("slug", "excerpt"):
-        if optional in payload and not isinstance(payload[optional], str):
-            fail("invalid_payload_field", optional)
+    require_nonempty_string(payload.get("slug"), "slug")
+    if "excerpt" in payload and not isinstance(payload["excerpt"], str):
+        fail("invalid_payload_field", "excerpt")
     validate_name_list(payload, "category_names")
     validate_name_list(payload, "tag_names")
 
@@ -297,22 +313,42 @@ def validate_payload(payload):
 def preflight_existing_media(items):
     media_cache = {}
     for item in items:
-        if not item.get("media_id"):
+        if item.get("media_id"):
+            media_id = int(item["media_id"])
+            cache_key = f"media:{media_id}"
+            if cache_key in media_cache:
+                continue
+            media = api("GET", f"media/{media_id}", query={"context": "edit"})
+            if media.get("id") != media_id or not media.get("source_url"):
+                fail("invalid_media_response", media_id)
+            media_cache[cache_key] = media
             continue
-        media_id = int(item["media_id"])
-        if media_id in media_cache:
+        path = Path(item["path"])
+        digest = file_sha256(path)
+        cache_key = f"hash:{digest}"
+        if cache_key in media_cache:
             continue
-        media = api("GET", f"media/{media_id}", query={"context": "edit"})
-        if media.get("id") != media_id or not media.get("source_url"):
-            fail("invalid_media_response", media_id)
-        media_cache[media_id] = media
+        slug = f"wpdp-{digest}"
+        matches = api(
+            "GET",
+            "media",
+            query={"slug": slug, "per_page": 100, "context": "edit", "_fields": "id,slug,source_url"},
+        )
+        exact = [media for media in matches if media.get("slug") == slug]
+        if len(exact) > 1:
+            fail("duplicate_media_found", {"sha256": digest, "ids": [media.get("id") for media in exact]})
+        if exact:
+            media = exact[0]
+            if not media.get("id") or not media.get("source_url"):
+                fail("invalid_media_response", media)
+            media_cache[cache_key] = media
     return media_cache
 
 
 def media_plan(item, role, media_cache):
     if item.get("media_id"):
         media_id = int(item["media_id"])
-        media = media_cache[media_id]
+        media = media_cache[f"media:{media_id}"]
         return {
             "role": role,
             "action": "reuse",
@@ -321,12 +357,26 @@ def media_plan(item, role, media_cache):
             "alt": item["alt"],
         }
     path = Path(item["path"])
+    digest = file_sha256(path)
+    existing = media_cache.get(f"hash:{digest}")
+    if existing:
+        return {
+            "role": role,
+            "action": "reuse",
+            "reason": "content_hash",
+            "media_id": existing["id"],
+            "source_url": existing["source_url"],
+            "sha256": digest,
+            "alt": item["alt"],
+        }
     return {
         "role": role,
         "action": "upload",
         "path": str(path),
         "bytes": path.stat().st_size,
         "mime_type": detect_supported_image_mime(path),
+        "sha256": digest,
+        "upload_name": f"wpdp-{digest}{path.suffix.lower()}",
         "alt": item["alt"],
     }
 
@@ -342,11 +392,41 @@ def taxonomy_plan(kind, names):
     return plan
 
 
+def find_posts_by_slug(slug):
+    matches = api(
+        "GET",
+        "posts",
+        query={
+            "slug": slug,
+            "status": "any",
+            "context": "edit",
+            "per_page": 100,
+            "_fields": "id,status,slug,link,modified",
+        },
+    )
+    return [item for item in matches if item.get("slug") == slug]
+
+
+def preflight_post_identity(slug, post_id=None):
+    matches = find_posts_by_slug(slug)
+    conflicts = [item for item in matches if post_id is None or item.get("id") != post_id]
+    if not conflicts:
+        return None
+    if len(conflicts) > 1:
+        fail("duplicate_posts_found", {"slug": slug, "ids": [item.get("id") for item in conflicts]})
+    existing = conflicts[0]
+    if post_id is not None or existing.get("status") != "draft":
+        fail("slug_conflict", {"slug": slug, "id": existing.get("id"), "status": existing.get("status")})
+    return existing
+
+
 def dry_run(payload_path, post_id=None):
     if post_id is not None:
         assert_draft_post(post_id)
     payload = load_payload(payload_path)
     validate_payload(payload)
+    require_nonempty_string(payload.get("slug"), "slug")
+    existing_draft = preflight_post_identity(payload["slug"], post_id)
     inline = payload.get("inline_images", [])
     media_cache = preflight_existing_media([payload["featured_image"], *inline])
     media_actions = [media_plan(payload["featured_image"], "featured", media_cache)]
@@ -362,6 +442,8 @@ def dry_run(payload_path, post_id=None):
         "would_mutate": False,
         "operation": "update_draft" if post_id is not None else "create_draft",
         "target_post_id": post_id,
+        "post_action": "reuse_existing_draft" if existing_draft else ("update" if post_id else "create"),
+        "existing_post_id": existing_draft.get("id") if existing_draft else None,
         "title": payload["title"],
         "slug": payload.get("slug", ""),
         "content_characters": len(payload["content"]),
@@ -433,6 +515,22 @@ def save_draft(payload_path, post_id=None):
     if post_id is not None:
         assert_draft_post(post_id)
     payload = load_payload(payload_path)
+    validate_payload(payload)
+    require_nonempty_string(payload.get("slug"), "slug")
+    existing_draft = preflight_post_identity(payload["slug"], post_id)
+    if existing_draft:
+        result = {
+            "ok": True,
+            "action": "reused_existing_draft",
+            "id": existing_draft.get("id"),
+            "status": existing_draft.get("status"),
+            "link": existing_draft.get("link"),
+            "preview_url": f"{validate_site_url(SITE)}/?p={existing_draft.get('id')}&preview=true",
+            "media_count": 0,
+            "seo_status": "not_changed",
+        }
+        print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
+        return
     post, uploaded, requested_meta = prepare_post(
         payload,
         include_status=post_id is None,

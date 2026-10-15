@@ -123,6 +123,8 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
 
         def fake_api(method, endpoint, data=None, headers=None, query=None, soft=False):
             requests.append((method, endpoint, data, query, soft))
+            if endpoint == "posts":
+                return []
             if method == "GET":
                 return {"id": 42, "status": "draft"}
             if data and "meta" in data:
@@ -148,8 +150,9 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
         prepare.assert_called_once()
         self.assertFalse(prepare.call_args.kwargs["include_status"])
         self.assertEqual(requests[0][0:2], ("GET", "posts/42"))
-        self.assertEqual(requests[1][0:2], ("GET", "posts/42"))
-        update_request = requests[2]
+        self.assertEqual(requests[1][0:2], ("GET", "posts"))
+        self.assertEqual(requests[2][0:2], ("GET", "posts/42"))
+        update_request = requests[3]
         self.assertEqual(update_request[0:2], ("POST", "posts/42"))
         self.assertNotIn("status", update_request[2])
 
@@ -158,6 +161,8 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
 
         def fake_api(method, endpoint, data=None, headers=None, query=None, soft=False):
             requests.append((method, endpoint, data))
+            if endpoint == "posts":
+                return []
             get_count = sum(1 for request in requests if request[0] == "GET")
             if get_count == 1:
                 return {"id": 42, "status": "draft"}
@@ -174,7 +179,7 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
             with self.assertRaises(SystemExit):
                 wordpress.save_draft(self.payload_file(), 42)
 
-        self.assertEqual([request[0] for request in requests], ["GET", "GET"])
+        self.assertEqual([request[0] for request in requests], ["GET", "GET", "GET"])
         self.assertFalse(any(request[0] == "POST" for request in requests))
 
 

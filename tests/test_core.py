@@ -19,6 +19,7 @@ SPEC.loader.exec_module(wordpress)
 def payload():
     return {
         "title": "제목",
+        "slug": "test-title",
         "content": "<p>앞</p>{{ONE}}<p>뒤</p>",
         "featured_image": {"media_id": 10, "alt": "대표"},
         "inline_images": [
