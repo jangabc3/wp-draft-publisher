@@ -25,6 +25,8 @@ class DiagnosticTests(unittest.TestCase):
 
         output = io.StringIO()
         with patch.object(wordpress, "api", side_effect=fake_api), patch.object(
+            wordpress, "bridge_status", return_value={"_error": "wordpress_http_404"}
+        ), patch.object(
             wordpress, "SITE", "https://example.test"
         ), patch.object(wordpress, "USER", "editor"), patch.object(
             wordpress, "PASSWORD", "secret"
@@ -46,6 +48,8 @@ class DiagnosticTests(unittest.TestCase):
 
         output = io.StringIO()
         with patch.object(wordpress, "api", side_effect=fake_api), patch.object(
+            wordpress, "bridge_status", return_value={"_error": "wordpress_http_404"}
+        ), patch.object(
             wordpress, "SITE", "https://example.test"
         ), patch.object(wordpress, "USER", "editor"), patch.object(
             wordpress, "PASSWORD", "secret"

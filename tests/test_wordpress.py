@@ -122,7 +122,7 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
         requests = []
 
         def fake_api(method, endpoint, data=None, headers=None, query=None, soft=False):
-            requests.append((method, endpoint, data, query, soft))
+            requests.append((method, endpoint, data, headers, query, soft))
             if endpoint == "posts":
                 return []
             if method == "GET":
@@ -155,6 +155,7 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
         update_request = requests[3]
         self.assertEqual(update_request[0:2], ("POST", "posts/42"))
         self.assertNotIn("status", update_request[2])
+        self.assertEqual(update_request[3], {"X-WPDP-Draft-Only": "1"})
 
     def test_status_change_during_preparation_stops_post_update(self):
         requests = []

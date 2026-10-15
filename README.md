@@ -117,6 +117,14 @@ Before uploading media or creating taxonomy terms, the helper validates required
 
 Rank Math metadata is sent as WordPress post meta. Some sites do not expose these fields through REST. In that case the draft and media still save, and the command returns `rank_math_rest_unavailable` so the site owner can install a minimal permission-checked REST bridge.
 
+The optional, auditable bridge is included in [`wordpress-plugin/wp-draft-publisher-bridge`](wordpress-plugin/wp-draft-publisher-bridge). A ready-to-upload ZIP is built at `dist/wp-draft-publisher-bridge.zip`. Besides exposing the three SEO fields, the bridge checks draft status inside the same WordPress request used for an update, closing the status-change race that a client-only preflight cannot eliminate. See [`wordpress-plugin/README.md`](wordpress-plugin/README.md) for installation.
+
+Build the ZIP from source with:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-plugin.ps1
+```
+
 ## Security
 
 - Configuration and runtime validation require HTTPS on the standard port 443.

@@ -41,3 +41,4 @@ The helper accepts only HTTPS site URLs on port 443 and refuses redirects, embed
 - Stop when an explicit payload image policy is not satisfied.
 - Stop on authentication or upload failure.
 - If `rank_math_rest_unavailable` is returned, keep the draft and explain that the site must expose the Rank Math fields through its REST API.
+- Prefer the included Draft Publisher REST Bridge when the user wants Rank Math automation and an atomic server-side draft-only update guard. Confirm it with `doctor`; never imply the bridge is active when `checks.bridge.ok` is false.

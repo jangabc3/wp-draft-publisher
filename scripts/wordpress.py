@@ -65,11 +65,11 @@ def validate_site_url(value):
     return candidate
 
 
-def api(method, endpoint, data=None, headers=None, query=None, soft=False):
+def rest_api(method, route, data=None, headers=None, query=None, soft=False):
     if not (SITE and USER and PASSWORD):
         fail("missing_credentials")
     site_url = validate_site_url(SITE)
-    url = f"{site_url}/wp-json/wp/v2/{endpoint.lstrip('/')}"
+    url = f"{site_url}/wp-json/{route.lstrip('/')}"
     if query:
         url += "?" + urlencode(query)
     auth = base64.b64encode(f"{USER}:{PASSWORD}".encode()).decode()
@@ -106,6 +106,14 @@ def api(method, endpoint, data=None, headers=None, query=None, soft=False):
             if soft:
                 return {"_error": "wordpress_connection_failed", "_details": str(exc)}
             fail("wordpress_connection_failed", str(exc))
+
+
+def api(method, endpoint, data=None, headers=None, query=None, soft=False):
+    return rest_api(method, f"wp/v2/{endpoint.lstrip('/')}", data, headers, query, soft)
+
+
+def bridge_status():
+    return rest_api("GET", "wp-draft-publisher/v1/status", soft=True)
 
 
 def find_term(kind, name):
@@ -553,8 +561,17 @@ def doctor():
             checks[name]["error"] = result["_error"]
         if name == "authentication" and checks[name]["ok"]:
             user = {"id": result.get("id"), "name": result.get("name"), "roles": result.get("roles", [])}
+    bridge = bridge_status()
+    bridge_available = not bool(bridge.get("_error"))
+    checks["bridge"] = {
+        "ok": bridge_available,
+        "required": False,
+        "version": bridge.get("version") if bridge_available else None,
+        "atomic_draft_guard": bool(bridge.get("atomic_draft_guard")) if bridge_available else False,
+        "rank_math_meta": bridge.get("rank_math_meta", []) if bridge_available else [],
+    }
     output = {
-        "ok": all(check["ok"] for check in checks.values()),
+        "ok": all(check["ok"] for name, check in checks.items() if name != "bridge"),
         "read_only": True,
         "site": validate_site_url(SITE),
         "user": user,
@@ -631,7 +648,8 @@ def save_draft(payload_path, post_id=None):
         cleanup_created_media(created_media)
         raise
     endpoint = f"posts/{post_id}" if post_id else "posts"
-    result = api("POST", endpoint, post, soft=True)
+    post_headers = {"X-WPDP-Draft-Only": "1"} if post_id is not None else None
+    result = api("POST", endpoint, post, headers=post_headers, soft=True)
     if result.get("_error"):
         recovered = None
         if post_id is None:
