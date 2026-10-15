@@ -57,11 +57,27 @@ Prepare a payload using `references/payload-schema.md`, then run:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" draft --input "C:\path\draft.json"
 ```
 
+## Preview without changes
+
+Run the full validation and inspect planned media and taxonomy actions without creating or updating anything:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" dry-run --input "C:\path\draft.json"
+```
+
+To preview an update, include the existing draft ID:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" dry-run --id 123 --input "C:\path\draft.json"
+```
+
+Dry-run may issue authenticated `GET` requests to verify the target draft, existing media, categories, and tags. It never sends `POST`, `PUT`, `PATCH`, or `DELETE` requests and returns `"would_mutate": false`.
+
 `update-draft` first verifies that the target is still a draft. It stops before uploading media or changing taxonomy when the post has any other status. Update requests also omit the WordPress `status` field, so this tool cannot turn an existing public post back into a draft.
 
 ## Tests
 
-The test suite uses a mocked REST boundary and never writes to a WordPress site:
+The test suite uses a mocked REST boundary and never writes to a WordPress site. It also asserts that dry-run performs read-only requests:
 
 ```powershell
 python -m unittest discover -s tests -v

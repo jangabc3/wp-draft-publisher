@@ -16,6 +16,11 @@ SITE = os.environ.get("IK_WP_SITE_URL", "").rstrip("/")
 USER = os.environ.get("IK_WP_USERNAME", "")
 PASSWORD = os.environ.get("IK_WP_APP_PASSWORD", "")
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
 
 class NoRedirectHandler(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -92,11 +97,18 @@ def api(method, endpoint, data=None, headers=None, query=None, soft=False):
         fail("wordpress_connection_failed", str(exc))
 
 
-def ensure_term(kind, name):
+def find_term(kind, name):
     results = api("GET", kind, query={"search": name, "per_page": 100, "context": "edit"})
     for item in results:
         if item.get("name", "").casefold() == name.casefold():
-            return item["id"]
+            return item
+    return None
+
+
+def ensure_term(kind, name):
+    existing = find_term(kind, name)
+    if existing:
+        return existing["id"]
     return api("POST", kind, {"name": name})["id"]
 
 
@@ -297,6 +309,74 @@ def preflight_existing_media(items):
     return media_cache
 
 
+def media_plan(item, role, media_cache):
+    if item.get("media_id"):
+        media_id = int(item["media_id"])
+        media = media_cache[media_id]
+        return {
+            "role": role,
+            "action": "reuse",
+            "media_id": media_id,
+            "source_url": media["source_url"],
+            "alt": item["alt"],
+        }
+    path = Path(item["path"])
+    return {
+        "role": role,
+        "action": "upload",
+        "path": str(path),
+        "bytes": path.stat().st_size,
+        "mime_type": detect_supported_image_mime(path),
+        "alt": item["alt"],
+    }
+
+
+def taxonomy_plan(kind, names):
+    plan = []
+    for name in names:
+        existing = find_term(kind, name)
+        item = {"name": name, "action": "reuse" if existing else "create"}
+        if existing:
+            item["id"] = existing["id"]
+        plan.append(item)
+    return plan
+
+
+def dry_run(payload_path, post_id=None):
+    if post_id is not None:
+        assert_draft_post(post_id)
+    payload = load_payload(payload_path)
+    validate_payload(payload)
+    inline = payload.get("inline_images", [])
+    media_cache = preflight_existing_media([payload["featured_image"], *inline])
+    media_actions = [media_plan(payload["featured_image"], "featured", media_cache)]
+    for index, item in enumerate(inline, start=1):
+        action = media_plan(item, f"inline:{index}", media_cache)
+        action["marker"] = item["marker"]
+        media_actions.append(action)
+    categories = taxonomy_plan("categories", payload.get("category_names", []))
+    tags = taxonomy_plan("tags", payload.get("tag_names", []))
+    output = {
+        "ok": True,
+        "dry_run": True,
+        "would_mutate": False,
+        "operation": "update_draft" if post_id is not None else "create_draft",
+        "target_post_id": post_id,
+        "title": payload["title"],
+        "slug": payload.get("slug", ""),
+        "content_characters": len(payload["content"]),
+        "media_actions": media_actions,
+        "category_actions": categories,
+        "tag_actions": tags,
+        "seo": {
+            "title": payload["seo"]["title"],
+            "description": payload["seo"]["description"],
+            "focus_keyword": payload["seo"]["focus_keyword"],
+        },
+    }
+    print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
+
+
 def prepare_post(payload, include_status=True):
     validate_payload(payload)
     inline = payload.get("inline_images", [])
@@ -387,12 +467,17 @@ def main():
     update = sub.add_parser("update-draft")
     update.add_argument("--id", required=True, type=int)
     update.add_argument("--input", required=True)
+    preview = sub.add_parser("dry-run")
+    preview.add_argument("--input", required=True)
+    preview.add_argument("--id", type=int)
     args = parser.parse_args()
     if args.command == "verify":
         me = api("GET", "users/me", query={"context": "edit"})
         print(json.dumps({"ok": True, "id": me.get("id"), "name": me.get("name"), "roles": me.get("roles", [])}, ensure_ascii=False, separators=(",", ":")))
     elif args.command == "draft":
         save_draft(args.input)
+    elif args.command == "dry-run":
+        dry_run(args.input, args.id)
     else:
         save_draft(args.input, args.id)
 
