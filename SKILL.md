@@ -19,7 +19,7 @@ The helper forces `status=draft`. It resolves or creates categories and tags, up
 
 ## Existing drafts
 
-Use `scripts/run.ps1 update-draft --id <post-id> --input <absolute-json-path>`. Reuse `media_id` values to avoid duplicate uploads.
+Use `scripts/run.ps1 update-draft --id <post-id> --input <absolute-json-path>`. Reuse `media_id` values to avoid duplicate uploads. The helper verifies that the target still has `draft` status before any media or taxonomy mutation and refuses every other status. It never sends a status change when updating.
 
 ## Credentials
 

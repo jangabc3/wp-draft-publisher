@@ -108,7 +108,7 @@ def load_payload(path):
         fail("invalid_payload", str(exc))
 
 
-def prepare_post(payload):
+def prepare_post(payload, include_status=True):
     required = ["title", "content", "featured_image", "seo"]
     missing = [key for key in required if not payload.get(key)]
     if missing:
@@ -154,17 +154,41 @@ def prepare_post(payload):
         "content": content,
         "excerpt": payload.get("excerpt", ""),
         "slug": payload.get("slug", ""),
-        "status": "draft",
         "featured_media": featured_id,
         "categories": categories,
         "tags": tags,
     }
+    if include_status:
+        post["status"] = "draft"
     return post, uploaded, meta
 
 
+def assert_draft_post(post_id):
+    if isinstance(post_id, bool) or not isinstance(post_id, int) or post_id < 1:
+        fail("invalid_post_id", post_id)
+    existing = api(
+        "GET",
+        f"posts/{post_id}",
+        query={"context": "edit", "_fields": "id,status"},
+    )
+    existing_status = existing.get("status")
+    if existing.get("id") != post_id or existing_status != "draft":
+        fail(
+            "post_not_draft",
+            {"id": post_id, "status": existing_status or "unknown"},
+        )
+
+
 def save_draft(payload_path, post_id=None):
+    if post_id is not None:
+        assert_draft_post(post_id)
     payload = load_payload(payload_path)
-    post, uploaded, requested_meta = prepare_post(payload)
+    post, uploaded, requested_meta = prepare_post(
+        payload,
+        include_status=post_id is None,
+    )
+    if post_id is not None:
+        assert_draft_post(post_id)
     endpoint = f"posts/{post_id}" if post_id else "posts"
     result = api("POST", endpoint, post)
     seo_result = api("POST", f"posts/{result.get('id')}", {"meta": requested_meta}, soft=True)

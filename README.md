@@ -5,6 +5,7 @@ A small Codex skill for creating image-rich WordPress drafts through the officia
 ## What it does
 
 - Creates and updates drafts
+- Refuses to update published, private, scheduled, pending, or trashed posts
 - Uploads a featured image and inline images
 - Adds alt text and captions
 - Resolves or creates categories and tags
@@ -54,6 +55,18 @@ Prepare a payload using `references/payload-schema.md`, then run:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" draft --input "C:\path\draft.json"
 ```
+
+`update-draft` first verifies that the target is still a draft. It stops before uploading media or changing taxonomy when the post has any other status. Update requests also omit the WordPress `status` field, so this tool cannot turn an existing public post back into a draft.
+
+## Tests
+
+The test suite uses a mocked REST boundary and never writes to a WordPress site:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+GitHub Actions runs the suite on Python 3.9 and 3.13 on Windows and Ubuntu.
 
 ## Rank Math
 
