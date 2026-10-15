@@ -18,6 +18,8 @@ Use `scripts/run.ps1` for deterministic WordPress operations instead of browser 
 
 The helper forces `status=draft`. It resolves or creates categories and tags, uploads media with alt text and captions, inserts valid figure markup at markers, sets the featured image, and attempts Rank Math metadata. Repeated creates reuse an existing draft with the exact slug. Byte-identical local images are reused by SHA-256 content hash. Explicit minimums can be supplied through `image_policy` when needed.
 
+Temporary read failures receive bounded retries. Writes are never blindly retried. On a definite failure, the helper rolls back only media created by the current operation and preserves reused attachments.
+
 The helper performs complete local payload validation and read-only validation of referenced WordPress media before its first server mutation. Do not bypass preflight failures or substitute unvalidated direct API writes.
 
 `dry-run` performs the same validation and reports planned post, media, taxonomy, and SEO actions with `would_mutate=false`. It may use authenticated GET requests but must never perform a mutating request.

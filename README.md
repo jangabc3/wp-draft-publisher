@@ -7,6 +7,8 @@ A small Codex skill for creating image-rich WordPress drafts through the officia
 - Creates and updates drafts
 - Reuses an existing draft with the same slug instead of creating a duplicate
 - Reuses local images by SHA-256 content hash
+- Retries transient read failures without blindly repeating writes
+- Removes only media created by a failed operation when rollback is safe
 - Refuses to update published, private, scheduled, pending, or trashed posts
 - Validates the complete payload and every image before the first server mutation
 - Uploads a featured image and inline images
@@ -78,6 +80,8 @@ Dry-run may issue authenticated `GET` requests to verify the target draft, exist
 `update-draft` first verifies that the target is still a draft. It stops before uploading media or changing taxonomy when the post has any other status. Update requests also omit the WordPress `status` field, so this tool cannot turn an existing public post back into a draft.
 
 Every payload must include a stable, non-empty `slug`. A repeated `draft` command returns the existing draft with that exact slug without uploading media or changing content. A slug owned by a published, scheduled, private, pending, or trashed post is treated as a conflict. Local images use deterministic `wpdp-<sha256>` media slugs, so byte-identical files are reused even when their local filenames differ.
+
+Authenticated `GET` requests use short, bounded retries for temporary connection failures and HTTP 429/502/503/504 responses. Mutating requests are sent once. If a create response is uncertain, the helper checks the stable slug before deciding whether the draft exists. When preparation or saving definitely fails, it deletes only attachments created during that operation; reused media is never rolled back.
 
 ## Tests
 

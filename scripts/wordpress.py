@@ -6,6 +6,7 @@ import json
 import mimetypes
 import os
 import sys
+import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
@@ -28,6 +29,8 @@ class NoRedirectHandler(HTTPRedirectHandler):
 
 
 OPEN_URL = build_opener(NoRedirectHandler()).open
+GET_RETRY_DELAYS = (0.25, 0.75)
+TRANSIENT_HTTP_CODES = {429, 502, 503, 504}
 
 
 def fail(message, details=None):
@@ -78,23 +81,31 @@ def api(method, endpoint, data=None, headers=None, query=None, soft=False):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         request_headers["Content-Type"] = "application/json; charset=utf-8"
     req = Request(url, data=body, headers=request_headers, method=method)
-    try:
-        with OPEN_URL(req, timeout=90) as response:
-            raw = response.read()
-            return json.loads(raw.decode("utf-8")) if raw else {}
-    except HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
+    attempts = 1 + (len(GET_RETRY_DELAYS) if method == "GET" else 0)
+    for attempt in range(attempts):
         try:
-            detail = json.loads(raw)
-        except json.JSONDecodeError:
-            detail = raw[:500]
-        if soft:
-            return {"_error": f"wordpress_http_{exc.code}", "_details": detail}
-        fail(f"wordpress_http_{exc.code}", detail)
-    except (URLError, TimeoutError) as exc:
-        if soft:
-            return {"_error": "wordpress_connection_failed", "_details": str(exc)}
-        fail("wordpress_connection_failed", str(exc))
+            with OPEN_URL(req, timeout=90) as response:
+                raw = response.read()
+                return json.loads(raw.decode("utf-8")) if raw else {}
+        except HTTPError as exc:
+            raw = exc.read().decode("utf-8", errors="replace")
+            try:
+                detail = json.loads(raw)
+            except json.JSONDecodeError:
+                detail = raw[:500]
+            if method == "GET" and exc.code in TRANSIENT_HTTP_CODES and attempt < attempts - 1:
+                time.sleep(GET_RETRY_DELAYS[attempt])
+                continue
+            if soft:
+                return {"_error": f"wordpress_http_{exc.code}", "_details": detail}
+            fail(f"wordpress_http_{exc.code}", detail)
+        except (URLError, TimeoutError) as exc:
+            if method == "GET" and attempt < attempts - 1:
+                time.sleep(GET_RETRY_DELAYS[attempt])
+                continue
+            if soft:
+                return {"_error": "wordpress_connection_failed", "_details": str(exc)}
+            fail("wordpress_connection_failed", str(exc))
 
 
 def find_term(kind, name):
@@ -112,7 +123,7 @@ def ensure_term(kind, name):
     return api("POST", kind, {"name": name})["id"]
 
 
-def upload_image(item, media_cache=None):
+def upload_image(item, media_cache=None, created_media=None):
     if item.get("media_id"):
         media_id = int(item["media_id"])
         cache_key = f"media:{media_id}"
@@ -136,6 +147,8 @@ def upload_image(item, media_cache=None):
         "Content-Type": mime,
         "Content-Disposition": f'attachment; filename="{upload_name}"',
     })
+    if created_media is not None:
+        created_media.append(media["id"])
     update = {
         "alt_text": item.get("alt", ""),
         "caption": item.get("caption", ""),
@@ -459,17 +472,17 @@ def dry_run(payload_path, post_id=None):
     print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
 
 
-def prepare_post(payload, include_status=True):
+def prepare_post(payload, include_status=True, created_media=None):
     validate_payload(payload)
     inline = payload.get("inline_images", [])
     media_cache = preflight_existing_media([payload["featured_image"], *inline])
 
-    featured_id, _ = upload_image(payload["featured_image"], media_cache)
+    featured_id, _ = upload_image(payload["featured_image"], media_cache, created_media)
     content = payload["content"]
     uploaded = [featured_id]
     for item in inline:
         marker = item["marker"]
-        media_id, url = upload_image(item, media_cache)
+        media_id, url = upload_image(item, media_cache, created_media)
         uploaded.append(media_id)
         content = content.replace(marker, figure(url, item.get("alt", ""), item.get("caption", "")), 1)
 
@@ -511,6 +524,15 @@ def assert_draft_post(post_id):
         )
 
 
+def cleanup_created_media(media_ids):
+    failures = []
+    for media_id in reversed(list(dict.fromkeys(media_ids))):
+        result = api("DELETE", f"media/{media_id}", query={"force": "true"}, soft=True)
+        if result.get("_error"):
+            failures.append({"id": media_id, "error": result["_error"]})
+    return failures
+
+
 def save_draft(payload_path, post_id=None):
     if post_id is not None:
         assert_draft_post(post_id)
@@ -531,14 +553,38 @@ def save_draft(payload_path, post_id=None):
         }
         print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
         return
-    post, uploaded, requested_meta = prepare_post(
-        payload,
-        include_status=post_id is None,
-    )
-    if post_id is not None:
-        assert_draft_post(post_id)
+    created_media = []
+    try:
+        post, uploaded, requested_meta = prepare_post(
+            payload,
+            include_status=post_id is None,
+            created_media=created_media,
+        )
+        if post_id is not None:
+            assert_draft_post(post_id)
+    except SystemExit:
+        cleanup_created_media(created_media)
+        raise
     endpoint = f"posts/{post_id}" if post_id else "posts"
-    result = api("POST", endpoint, post)
+    result = api("POST", endpoint, post, soft=True)
+    if result.get("_error"):
+        recovered = None
+        if post_id is None:
+            try:
+                matches = find_posts_by_slug(payload["slug"])
+                exact_drafts = [item for item in matches if item.get("status") == "draft"]
+                if len(exact_drafts) == 1:
+                    recovered = exact_drafts[0]
+            except SystemExit:
+                recovered = None
+        if recovered:
+            result = recovered
+            recovery_status = "recovered_after_uncertain_response"
+        else:
+            cleanup_failures = cleanup_created_media(created_media)
+            fail("post_save_failed", {"request": result, "cleanup_failures": cleanup_failures})
+    else:
+        recovery_status = "not_needed"
     seo_result = api("POST", f"posts/{result.get('id')}", {"meta": requested_meta}, soft=True)
     returned_meta = seo_result.get("meta", {}) if not seo_result.get("_error") else {}
     seo_ok = not seo_result.get("_error") and all(
@@ -552,6 +598,7 @@ def save_draft(payload_path, post_id=None):
         "preview_url": f"{validate_site_url(SITE)}/?p={result.get('id')}&preview=true",
         "media_count": len(set(uploaded)),
         "seo_status": "saved" if seo_ok else "rank_math_rest_unavailable",
+        "recovery_status": recovery_status,
     }
     print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
 
