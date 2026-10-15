@@ -1,6 +1,7 @@
 import importlib.util
 import io
 import json
+import zipfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -16,6 +17,15 @@ SPEC.loader.exec_module(wordpress)
 
 
 class PluginSourceTests(unittest.TestCase):
+    def test_distribution_zip_uses_portable_forward_slash_paths(self):
+        archive = ROOT / "dist" / "wp-draft-publisher-bridge.zip"
+        with zipfile.ZipFile(archive) as package:
+            names = package.namelist()
+        self.assertIn(
+            "wp-draft-publisher-bridge/wp-draft-publisher-bridge.php", names
+        )
+        self.assertTrue(all("\\" not in name for name in names))
+
     def test_plugin_has_permission_checked_rank_math_fields_and_status_route(self):
         source = PLUGIN.read_text(encoding="utf-8")
         for field in ("rank_math_title", "rank_math_description", "rank_math_focus_keyword"):

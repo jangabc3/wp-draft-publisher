@@ -566,6 +566,8 @@ def doctor():
     checks["bridge"] = {
         "ok": bridge_available,
         "required": False,
+        "error": bridge.get("_error") if not bridge_available else None,
+        "details": bridge.get("_details") if not bridge_available else None,
         "version": bridge.get("version") if bridge_available else None,
         "atomic_draft_guard": bool(bridge.get("atomic_draft_guard")) if bridge_available else False,
         "rank_math_meta": bridge.get("rank_math_meta", []) if bridge_available else [],
