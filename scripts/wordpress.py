@@ -617,6 +617,63 @@ def inspect_post(post_id):
     print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
 
 
+def normalized_saved_text(value):
+    if not isinstance(value, str):
+        return ""
+    return value.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
+def raw_rest_field(post, field):
+    value = post.get(field, {})
+    if isinstance(value, dict):
+        return value.get("raw") or value.get("rendered") or ""
+    return value if isinstance(value, str) else ""
+
+
+def verify_saved_post(post_id, expected_post):
+    saved = api(
+        "GET",
+        f"posts/{post_id}",
+        query={
+            "context": "edit",
+            "_fields": (
+                "id,status,slug,title,content,excerpt,featured_media,"
+                "categories,tags,modified,link"
+            ),
+        },
+    )
+    mismatches = []
+    if saved.get("id") != post_id:
+        mismatches.append("id")
+    if saved.get("status") != "draft":
+        mismatches.append("status")
+    if saved.get("slug") != expected_post.get("slug"):
+        mismatches.append("slug")
+    for field in ("title", "content", "excerpt"):
+        if normalized_saved_text(raw_rest_field(saved, field)) != normalized_saved_text(
+            expected_post.get(field, "")
+        ):
+            mismatches.append(field)
+    if saved.get("featured_media") != expected_post.get("featured_media"):
+        mismatches.append("featured_media")
+    for field in ("categories", "tags"):
+        if sorted(saved.get(field, [])) != sorted(expected_post.get(field, [])):
+            mismatches.append(field)
+    if mismatches:
+        fail(
+            "post_verification_failed",
+            {
+                "id": post_id,
+                "mismatched_fields": mismatches,
+                "guidance": "Close every WordPress editor tab for this post, then run update-draft again.",
+            },
+        )
+    return {
+        "modified": saved.get("modified"),
+        "link": saved.get("link"),
+    }
+
+
 def save_draft(payload_path, post_id=None):
     if post_id is not None:
         assert_draft_post(post_id)
@@ -624,19 +681,11 @@ def save_draft(payload_path, post_id=None):
     validate_payload(payload)
     require_nonempty_string(payload.get("slug"), "slug")
     existing_draft = preflight_post_identity(payload["slug"], post_id)
+    action = "updated_draft" if post_id is not None else "created_draft"
     if existing_draft:
-        result = {
-            "ok": True,
-            "action": "reused_existing_draft",
-            "id": existing_draft.get("id"),
-            "status": existing_draft.get("status"),
-            "link": existing_draft.get("link"),
-            "preview_url": f"{validate_site_url(SITE)}/?p={existing_draft.get('id')}&preview=true",
-            "media_count": 0,
-            "seo_status": "not_changed",
-        }
-        print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
-        return
+        post_id = existing_draft.get("id")
+        assert_draft_post(post_id)
+        action = "updated_existing_draft"
     created_media = []
     try:
         post, uploaded, requested_meta = prepare_post(
@@ -675,15 +724,19 @@ def save_draft(payload_path, post_id=None):
     seo_ok = not seo_result.get("_error") and all(
         returned_meta.get(k) == v for k, v in requested_meta.items() if v
     )
+    verification = verify_saved_post(result.get("id"), post)
     output = {
         "ok": True,
+        "action": action,
         "id": result.get("id"),
         "status": result.get("status"),
-        "link": result.get("link"),
+        "link": verification.get("link") or result.get("link"),
         "preview_url": f"{validate_site_url(SITE)}/?p={result.get('id')}&preview=true",
         "media_count": len(set(uploaded)),
         "seo_status": "saved" if seo_ok else "rank_math_rest_unavailable",
         "recovery_status": recovery_status,
+        "verification_status": "verified",
+        "verified_modified": verification.get("modified"),
     }
     print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
 

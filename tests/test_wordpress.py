@@ -143,6 +143,8 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
         with patch.object(wordpress, "api", side_effect=fake_api), patch.object(
             wordpress, "prepare_post", return_value=prepared
         ) as prepare, patch.object(
+            wordpress, "verify_saved_post", return_value={"modified": "now", "link": "https://example.test/?p=42"}
+        ), patch.object(
             wordpress, "SITE", "https://example.test"
         ), redirect_stdout(io.StringIO()):
             wordpress.save_draft(self.payload_file(), 42)
@@ -210,6 +212,52 @@ class CreateDraftTests(PayloadFileMixin, unittest.TestCase):
         ):
             post, _, _ = wordpress.prepare_post(valid_payload(), include_status=False)
         self.assertNotIn("status", post)
+
+
+class SavedPostVerificationTests(unittest.TestCase):
+    def expected_post(self):
+        return {
+            "title": "Verified title",
+            "slug": "verified-title",
+            "content": "<p>Verified body</p>",
+            "excerpt": "Verified excerpt",
+            "featured_media": 11,
+            "categories": [3, 2],
+            "tags": [5],
+        }
+
+    def saved_post(self):
+        return {
+            "id": 42,
+            "status": "draft",
+            "slug": "verified-title",
+            "title": {"raw": "Verified title"},
+            "content": {"raw": "<p>Verified body</p>"},
+            "excerpt": {"raw": "Verified excerpt"},
+            "featured_media": 11,
+            "categories": [2, 3],
+            "tags": [5],
+            "modified": "2026-10-16T10:00:00",
+            "link": "https://example.test/?p=42",
+        }
+
+    def test_saved_post_is_read_back_and_verified(self):
+        with patch.object(wordpress, "api", return_value=self.saved_post()) as api_call:
+            result = wordpress.verify_saved_post(42, self.expected_post())
+        self.assertEqual(result["modified"], "2026-10-16T10:00:00")
+        self.assertEqual(api_call.call_args.args[0:2], ("GET", "posts/42"))
+
+    def test_content_mismatch_is_reported_without_echoing_content(self):
+        saved = self.saved_post()
+        saved["content"] = {"raw": "<p>Stale body</p>"}
+        output = io.StringIO()
+        with patch.object(wordpress, "api", return_value=saved), redirect_stdout(output):
+            with self.assertRaises(SystemExit):
+                wordpress.verify_saved_post(42, self.expected_post())
+        error = json.loads(output.getvalue())
+        self.assertEqual(error["error"], "post_verification_failed")
+        self.assertEqual(error["details"]["mismatched_fields"], ["content"])
+        self.assertNotIn("Stale body", output.getvalue())
 
 
 class ExistingApiFailureTests(PayloadFileMixin, unittest.TestCase):

@@ -47,22 +47,34 @@ class IdempotencyTests(unittest.TestCase):
         self.addCleanup(lambda: path.unlink(missing_ok=True))
         return path, content
 
-    def test_existing_draft_slug_is_reused_without_mutation(self):
+    def test_existing_draft_slug_is_updated_in_place(self):
         calls = []
 
         def fake_api(method, endpoint, data=None, headers=None, query=None, soft=False):
             calls.append((method, endpoint))
-            return [{"id": 77, "status": "draft", "slug": "same-article", "link": "https://example.test/?p=77"}]
+            if endpoint == "posts":
+                return [{"id": 77, "status": "draft", "slug": "same-article", "link": "https://example.test/?p=77"}]
+            if method == "GET":
+                return {"id": 77, "status": "draft"}
+            if data and "meta" in data:
+                return {"meta": data["meta"]}
+            return {"id": 77, "status": "draft", "link": "https://example.test/?p=77"}
 
         output = io.StringIO()
+        prepared = (
+            {"title": "Same article", "slug": "same-article", "content": "<p>Body</p>", "excerpt": "", "featured_media": 11, "categories": [], "tags": []},
+            [11],
+            {"rank_math_title": "SEO"},
+        )
         with patch.object(wordpress, "api", side_effect=fake_api), patch.object(
-            wordpress, "prepare_post"
-        ) as prepare, patch.object(wordpress, "SITE", "https://example.test"), redirect_stdout(output):
+            wordpress, "prepare_post", return_value=prepared
+        ), patch.object(
+            wordpress, "verify_saved_post", return_value={"modified": "now", "link": "https://example.test/?p=77"}
+        ), patch.object(wordpress, "SITE", "https://example.test"), redirect_stdout(output):
             wordpress.save_draft(self.payload_file())
-        prepare.assert_not_called()
-        self.assertEqual(calls, [("GET", "posts")])
+        self.assertIn(("POST", "posts/77"), calls)
         result = json.loads(output.getvalue())
-        self.assertEqual(result["action"], "reused_existing_draft")
+        self.assertEqual(result["action"], "updated_existing_draft")
         self.assertEqual(result["id"], 77)
 
     def test_published_slug_conflict_is_rejected(self):

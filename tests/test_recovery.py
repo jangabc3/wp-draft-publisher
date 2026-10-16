@@ -99,6 +99,8 @@ class RecoveryTests(unittest.TestCase):
         output = io.StringIO()
         with patch.object(wordpress, "api", side_effect=fake_api), patch.object(
             wordpress, "prepare_post", return_value=prepared
+        ), patch.object(
+            wordpress, "verify_saved_post", return_value={"modified": "now", "link": "https://example.test/?p=55"}
         ), patch.object(wordpress, "SITE", "https://example.test"), redirect_stdout(output):
             wordpress.save_draft(self.payload_file())
         self.assertFalse(any(method == "DELETE" for method, _ in calls))

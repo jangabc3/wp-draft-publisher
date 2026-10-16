@@ -5,7 +5,7 @@ A small Codex skill for creating image-rich WordPress drafts through the officia
 ## What it does
 
 - Creates and updates drafts
-- Reuses an existing draft with the same slug instead of creating a duplicate
+- Updates an existing draft with the same slug instead of creating a duplicate or silently keeping stale content
 - Reuses local images by SHA-256 content hash
 - Retries transient read failures without blindly repeating writes
 - Removes only media created by a failed operation when rollback is safe
@@ -16,6 +16,7 @@ A small Codex skill for creating image-rich WordPress drafts through the officia
 - Resolves or creates categories and tags
 - Inserts valid Gutenberg-friendly figure markup
 - Attempts Rank Math title, description, and focus keyword fields
+- Reads the saved draft back and verifies its core fields before reporting success
 - Returns compact JSON suitable for low-token agent workflows
 
 The command intentionally has no publish operation.
@@ -95,7 +96,9 @@ Dry-run may issue authenticated `GET` requests to verify the target draft, exist
 
 `update-draft` first verifies that the target is still a draft. It stops before uploading media or changing taxonomy when the post has any other status. Update requests also omit the WordPress `status` field, so this tool cannot turn an existing public post back into a draft.
 
-Every payload must include a stable, non-empty `slug`. A repeated `draft` command returns the existing draft with that exact slug without uploading media or changing content. A slug owned by a published, scheduled, private, pending, or trashed post is treated as a conflict. Local images use deterministic `wpdp-<sha256>` media slugs, so byte-identical files are reused even when their local filenames differ.
+Every payload must include a stable, non-empty `slug`. A repeated `draft` command updates the existing draft with that exact slug in place. A slug owned by a published, scheduled, private, pending, or trashed post is treated as a conflict. Local images use deterministic `wpdp-<sha256>` media slugs, so byte-identical files are reused even when their local filenames differ.
+
+After the post and SEO requests, the helper reads the post back in edit context and verifies the title, slug, raw body, excerpt, featured image, categories, and tags. A successful write returns `"verification_status":"verified"`. Keep the WordPress block editor closed during the command because a stale browser autosave can overwrite a REST update after it is saved.
 
 Authenticated `GET` requests use short, bounded retries for temporary connection failures and HTTP 429/502/503/504 responses. Mutating requests are sent once. If a create response is uncertain, the helper checks the stable slug before deciding whether the draft exists. When preparation or saving definitely fails, it deletes only attachments created during that operation; reused media is never rolled back.
 
