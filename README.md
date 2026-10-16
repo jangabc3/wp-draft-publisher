@@ -28,7 +28,26 @@ The command intentionally has no publish operation.
 - WordPress 5.6 or later with HTTPS and the REST API enabled
 - A WordPress Application Password for an account allowed to create posts and upload media
 
-## Install
+## Install on Windows
+
+Download and extract the release ZIP, then double-click `install.cmd`. The installer:
+
+- checks for Python 3.9 or later;
+- runs the bundled safety tests;
+- backs up an existing installation;
+- copies the skill to the correct Codex directory;
+- opens the secure WordPress credential setup; and
+- runs a read-only connection and capability check.
+
+It does not need administrator access and never stores the application password in the repository.
+
+For a non-interactive skill-only install, run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -SkipConfigure
+```
+
+### Manual installation
 
 Copy this folder to:
 
@@ -37,6 +56,14 @@ Copy this folder to:
 ```
 
 Restart or open a new Codex conversation so the skill is discovered.
+
+To remove the installed skill while keeping credentials:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1
+```
+
+Add `-RemoveCredentials` only when the encrypted connection details should also be removed.
 
 ## Configure
 
