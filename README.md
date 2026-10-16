@@ -18,6 +18,7 @@ A small Codex skill for creating image-rich WordPress drafts through the officia
 - Attempts Rank Math title, description, and focus keyword fields
 - Reads the saved draft back and verifies its core fields before reporting success
 - Returns compact JSON suitable for low-token agent workflows
+- Exposes the same guarded workflow to Claude, Cursor, and other stdio MCP clients
 
 The command intentionally has no publish operation.
 
@@ -97,6 +98,22 @@ Prepare a payload using `references/payload-schema.md`, then run:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" draft --input "C:\path\draft.json"
 ```
+
+## Use with Claude, Cursor, or another MCP client
+
+The repository includes a dependency-free stdio MCP server. It exposes doctor, dry-run, draft create/update, compact inspection, recovery snapshots, and activity history. There is deliberately no publish tool.
+
+On Windows, complete the normal credential setup once and configure the MCP client to launch:
+
+```text
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\YOUR_NAME\.codex\skills\wp-draft-publisher\scripts\run-mcp.ps1
+```
+
+An editable Claude Desktop example is available at [`examples/claude-desktop-config.json`](examples/claude-desktop-config.json). Cursor and other stdio MCP clients use the same command and arguments. Restart the client after saving its MCP configuration.
+
+On macOS or Linux, run `scripts/mcp_server.py` with Python 3.9 or later and provide `IK_WP_SITE_URL`, `IK_WP_USERNAME`, and `IK_WP_APP_PASSWORD` through the operating system's secret-aware launcher. Do not save an application password in the repository or a shared configuration file.
+
+The MCP server writes only JSON-RPC messages to stdout. WordPress failures are returned as compact tool errors without echoing credentials or full article content.
 
 ## Diagnose and inspect
 

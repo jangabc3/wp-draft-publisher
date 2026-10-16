@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "wp-draft-publisher": {
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "C:\\Users\\YOUR_NAME\\.codex\\skills\\wp-draft-publisher\\scripts\\run-mcp.ps1"
+      ]
+    }
+  }
+}

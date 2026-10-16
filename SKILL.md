@@ -7,6 +7,8 @@ description: Write, revise, and save WordPress articles through the official RES
 
 Use `scripts/run.ps1` for deterministic WordPress operations instead of browser automation when the REST API can complete the task.
 
+The same Python workflow is available through `scripts/mcp_server.py` for stdio MCP clients. Codex should use this skill's CLI commands; Claude, Cursor, and compatible clients can launch `scripts/run-mcp.ps1` after the same credential setup.
+
 ## Workflow
 
 1. Run `scripts/show-profile.ps1`. Apply the configured language, audience, tone, article length, image style, FAQ, internal-link, official-source, and SEO preferences. If the profile is missing, follow the site's stated requirements and [references/article-format.md](references/article-format.md), and recommend `scripts/setup-profile.ps1` after completing the current request.
