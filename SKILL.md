@@ -9,7 +9,7 @@ Use `scripts/run.ps1` for deterministic WordPress operations instead of browser 
 
 ## Workflow
 
-1. Follow the site's editorial requirements and [references/article-format.md](references/article-format.md).
+1. Run `scripts/show-profile.ps1`. Apply the configured language, audience, tone, article length, image style, FAQ, internal-link, official-source, and SEO preferences. If the profile is missing, follow the site's stated requirements and [references/article-format.md](references/article-format.md), and recommend `scripts/setup-profile.ps1` after completing the current request.
 2. Choose the image count from the article's length and instructional needs. Long practical guides should have enough well-spaced inline images to avoid uninterrupted walls of text, without forcing a fixed count.
 3. On a new site or after a permission change, run `scripts/run.ps1 doctor`. It is read-only.
 4. Create a JSON payload using [references/payload-schema.md](references/payload-schema.md).

@@ -37,6 +37,7 @@ Download and extract the release ZIP, then double-click `install.cmd`. The insta
 - backs up an existing installation;
 - copies the skill to the correct Codex directory;
 - opens the secure WordPress credential setup; and
+- creates a reusable editorial profile for the site's voice and content rules; and
 - runs a read-only connection and capability check.
 
 It does not need administrator access and never stores the application password in the repository.
@@ -74,6 +75,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex
 ```
 
 The application password is encrypted with Windows DPAPI and stored in `%LOCALAPPDATA%\WPDraftPublisher\credentials.json`. It is never stored in this repository.
+
+Create or change the non-secret editorial profile:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\setup-profile.ps1"
+```
+
+The profile records the site's language, audience, tone, typical length, image direction, FAQ preference, internal-link minimum, official-source policy, and SEO provider. It is stored outside the installed skill so upgrades do not overwrite it. Agents read it with `scripts/show-profile.ps1` before drafting.
 
 Verify the connection:
 

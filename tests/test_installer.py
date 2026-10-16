@@ -11,6 +11,7 @@ class InstallerTests(unittest.TestCase):
         self.assertIn("Python 3.9 or later", text)
         self.assertIn("unittest discover", text)
         self.assertIn("scripts\\setup-credentials.ps1", text)
+        self.assertIn("scripts\\setup-profile.ps1", text)
         self.assertIn("doctor", text)
 
     def test_installer_uses_staging_and_backup(self):
@@ -24,6 +25,15 @@ class InstallerTests(unittest.TestCase):
         self.assertIn(".codex\\skills", text)
         self.assertIn("StartsWith", text)
         self.assertIn("SupportsShouldProcess", text)
+
+    def test_profile_scripts_keep_preferences_outside_the_skill(self):
+        setup = (ROOT / "scripts" / "setup-profile.ps1").read_text(encoding="utf-8")
+        show = (ROOT / "scripts" / "show-profile.ps1").read_text(encoding="utf-8")
+        self.assertIn("LOCALAPPDATA", setup)
+        self.assertIn("editorial-profile.json", setup)
+        self.assertNotIn("encrypted_password", setup)
+        self.assertIn("editorial_profile_missing", show)
+        self.assertIn("minimum_related_links", show)
 
 
 if __name__ == "__main__":

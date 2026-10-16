@@ -92,17 +92,22 @@ Write-Host "[OK] Installed at $resolvedDestination"
 if ($backup) { Write-Host "[INFO] Previous install backed up at $backup" }
 
 if (-not $SkipConfigure) {
-    Write-Host '[3/4] Connecting WordPress...'
+    Write-Host '[3/5] Connecting WordPress...'
     & (Join-Path $resolvedDestination 'scripts\setup-credentials.ps1')
     if ($LASTEXITCODE -ne 0) { throw 'Credential setup did not complete.' }
 
-    Write-Host '[4/4] Checking WordPress capabilities...'
+    Write-Host '[4/5] Setting editorial preferences...'
+    & (Join-Path $resolvedDestination 'scripts\setup-profile.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'Editorial profile setup did not complete.' }
+
+    Write-Host '[5/5] Checking WordPress capabilities...'
     & (Join-Path $resolvedDestination 'scripts\run.ps1') doctor
     if ($LASTEXITCODE -ne 0) { throw 'The skill was installed, but the WordPress connection check failed.' }
 }
 else {
-    Write-Host '[3/4] Credential setup skipped.'
-    Write-Host '[4/4] Connection check skipped.'
+    Write-Host '[3/5] Credential setup skipped.'
+    Write-Host '[4/5] Editorial profile setup skipped.'
+    Write-Host '[5/5] Connection check skipped.'
 }
 
 Write-Host ''
