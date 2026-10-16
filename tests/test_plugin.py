@@ -52,6 +52,16 @@ class PluginSourceTests(unittest.TestCase):
         self.assertIn("array('status' => 409)", source)
         self.assertIn("add_filter('rest_pre_insert_post'", source)
 
+    def test_plugin_has_privacy_safe_activity_log(self):
+        source = PLUGIN.read_text(encoding="utf-8")
+        self.assertIn("WPDP_ACTIVITY_POST_TYPE", source)
+        self.assertIn("WPDP_ACTIVITY_LIMIT", source)
+        self.assertIn("/activity", source)
+        self.assertIn("rest_after_insert_post", source)
+        self.assertIn("wpdp_bridge_record_activity", source)
+        self.assertIn("add_management_page", source)
+        self.assertNotIn("_wpdp_post_content", source)
+
 
 class BridgeDiagnosticsTests(unittest.TestCase):
     def test_doctor_reports_optional_bridge_capabilities(self):
@@ -64,6 +74,7 @@ class BridgeDiagnosticsTests(unittest.TestCase):
                 "version": "1.2.0", "atomic_draft_guard": True,
                 "optimistic_locking": True,
                 "snapshots": True, "snapshot_limit": 20,
+                "activity_log": True, "activity_limit": 500,
                 "rank_math_meta": ["rank_math_title"],
             }
         ), patch.object(wordpress, "SITE", "https://example.test"), patch.object(

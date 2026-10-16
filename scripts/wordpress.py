@@ -7,6 +7,7 @@ import mimetypes
 import os
 import sys
 import time
+import uuid
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
@@ -585,6 +586,8 @@ def doctor():
         "optimistic_locking": bool(bridge.get("optimistic_locking")) if bridge_available else False,
         "snapshots": bool(bridge.get("snapshots")) if bridge_available else False,
         "snapshot_limit": bridge.get("snapshot_limit") if bridge_available else None,
+        "activity_log": bool(bridge.get("activity_log")) if bridge_available else False,
+        "activity_limit": bridge.get("activity_limit") if bridge_available else None,
         "rank_math_meta": bridge.get("rank_math_meta", []) if bridge_available else [],
     }
     output = {
@@ -656,6 +659,20 @@ def restore_snapshot(snapshot_id):
     print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
 
 
+def list_activity(limit=50):
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1 or limit > 100:
+        fail("invalid_activity_limit", limit)
+    result = rest_api(
+        "GET",
+        "wp-draft-publisher/v1/activity",
+        query={"per_page": limit},
+        soft=True,
+    )
+    if result.get("_error"):
+        fail("activity_bridge_unavailable", result)
+    print(json.dumps({"ok": True, **result}, ensure_ascii=False, separators=(",", ":")))
+
+
 def normalized_saved_text(value):
     if not isinstance(value, str):
         return ""
@@ -715,6 +732,7 @@ def verify_saved_post(post_id, expected_post):
 
 
 def save_draft(payload_path, post_id=None):
+    operation_id = str(uuid.uuid4())
     initial_post = None
     if post_id is not None:
         initial_post = assert_draft_post(post_id)
@@ -740,9 +758,14 @@ def save_draft(payload_path, post_id=None):
         cleanup_created_media(created_media)
         raise
     endpoint = f"posts/{post_id}" if post_id else "posts"
-    post_headers = None
+    media_ids = ",".join(str(item) for item in sorted(set(uploaded)))
+    post_headers = {
+        "X-WPDP-Agent": "1",
+        "X-WPDP-Operation-ID": operation_id,
+        "X-WPDP-Media-IDs": media_ids,
+    }
     if post_id is not None:
-        post_headers = {"X-WPDP-Draft-Only": "1"}
+        post_headers["X-WPDP-Draft-Only"] = "1"
         if initial_post and initial_post.get("modified_gmt"):
             post_headers["X-WPDP-Expected-Modified-GMT"] = initial_post["modified_gmt"]
     result = api("POST", endpoint, post, headers=post_headers, soft=True)
@@ -784,7 +807,7 @@ def save_draft(payload_path, post_id=None):
         "verified_modified": verification.get("modified"),
         "verified_modified_gmt": verification.get("modified_gmt"),
         "snapshot_id": result.get("wpdp_snapshot_id"),
-        "operation_id": result.get("wpdp_operation_id"),
+        "operation_id": result.get("wpdp_operation_id") or operation_id,
     }
     print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
 
@@ -800,6 +823,8 @@ def main():
     snapshots.add_argument("--id", required=True, type=int)
     restore = sub.add_parser("restore-snapshot")
     restore.add_argument("--snapshot-id", required=True, type=int)
+    activity = sub.add_parser("activity")
+    activity.add_argument("--limit", type=int, default=50)
     draft = sub.add_parser("draft")
     draft.add_argument("--input", required=True)
     update = sub.add_parser("update-draft")
@@ -820,6 +845,8 @@ def main():
         list_snapshots(args.id)
     elif args.command == "restore-snapshot":
         restore_snapshot(args.snapshot_id)
+    elif args.command == "activity":
+        list_activity(args.limit)
     elif args.command == "draft":
         save_draft(args.input)
     elif args.command == "dry-run":

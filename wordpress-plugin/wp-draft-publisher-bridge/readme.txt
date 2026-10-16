@@ -2,7 +2,7 @@
 Contributors: wp-draft-publisher
 Requires at least: 5.6
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,6 +22,8 @@ This companion plugin exposes only the three Rank Math post-meta fields used by 
 
 = 1.2.0 =
 * Store private recovery snapshots before guarded draft updates.
+* Record privacy-safe draft activity without credentials, prompts, or article content.
+* Review permitted activity under Tools > Draft Publisher Activity.
 * Add permission-checked snapshot listing and verified draft-only restoration.
 
 = 1.1.0 =

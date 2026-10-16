@@ -140,6 +140,8 @@ After the post and SEO requests, the helper reads the post back in edit context 
 
 Bridge version 1.2.0 or later stores a private server-side snapshot before each guarded draft update and retains the newest 20 snapshots per post. List recovery points with `scripts/run.ps1 snapshots --id <post-id>`. Restore one with `scripts/run.ps1 restore-snapshot --snapshot-id <snapshot-id>`. Restoration is permission checked, works only on drafts, verifies the result, and creates another recovery point before changing the post.
 
+Bridge version 1.3.0 or later also keeps a privacy-safe activity trail for agent draft creates, updates, restores, and the media IDs involved. It records no credentials, article body, or prompt text. Editors can review permitted records under **Tools → Draft Publisher Activity** or run `scripts/run.ps1 activity --limit 50`. The newest 500 records are retained.
+
 Authenticated `GET` requests use short, bounded retries for temporary connection failures and HTTP 429/502/503/504 responses. Mutating requests are sent once. If a create response is uncertain, the helper checks the stable slug before deciding whether the draft exists. When preparation or saving definitely fails, it deletes only attachments created during that operation; reused media is never rolled back.
 
 ## Tests

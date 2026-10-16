@@ -143,6 +143,8 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
         with patch.object(wordpress, "api", side_effect=fake_api), patch.object(
             wordpress, "prepare_post", return_value=prepared
         ) as prepare, patch.object(
+            wordpress.uuid, "uuid4", return_value="test-operation"
+        ), patch.object(
             wordpress, "verify_saved_post", return_value={"modified": "now", "link": "https://example.test/?p=42"}
         ), patch.object(
             wordpress, "SITE", "https://example.test"
@@ -160,6 +162,9 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
         self.assertEqual(
             update_request[3],
             {
+                "X-WPDP-Agent": "1",
+                "X-WPDP-Operation-ID": "test-operation",
+                "X-WPDP-Media-IDs": "11",
                 "X-WPDP-Draft-Only": "1",
                 "X-WPDP-Expected-Modified-GMT": "2026-10-16T01:00:00",
             },

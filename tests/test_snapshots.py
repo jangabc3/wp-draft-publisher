@@ -44,5 +44,23 @@ class SnapshotClientTests(unittest.TestCase):
         request.assert_not_called()
 
 
+class ActivityClientTests(unittest.TestCase):
+    def test_activity_is_read_only_and_bounded(self):
+        response = {"activity": [{"post_id": 42, "action": "update_draft"}]}
+        output = io.StringIO()
+        with patch.object(wordpress, "rest_api", return_value=response) as request, redirect_stdout(output):
+            wordpress.list_activity(25)
+        request.assert_called_once_with(
+            "GET", "wp-draft-publisher/v1/activity", query={"per_page": 25}, soft=True
+        )
+        self.assertEqual(json.loads(output.getvalue())["activity"][0]["post_id"], 42)
+
+    def test_invalid_activity_limit_stops_before_network(self):
+        with patch.object(wordpress, "rest_api") as request, redirect_stdout(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                wordpress.list_activity(101)
+        request.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

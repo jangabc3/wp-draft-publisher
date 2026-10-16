@@ -19,6 +19,8 @@ Use `scripts/run.ps1` for deterministic WordPress operations instead of browser 
 
 Bridge version 1.2.0 or later creates a private recovery snapshot before every guarded draft update. Use `scripts/run.ps1 snapshots --id <post-id>` to list recovery points. Run `scripts/run.ps1 restore-snapshot --snapshot-id <id>` only when the user explicitly asks to restore that draft. Restoration never applies to a published or otherwise non-draft post.
 
+Bridge version 1.3.0 or later records privacy-safe operation metadata. Use `scripts/run.ps1 activity --limit 50` only when the user asks to inspect recent automated changes. The log contains IDs and status, never credentials, prompts, or article body content.
+
 The helper forces `status=draft`. It resolves or creates categories and tags, uploads media with alt text and captions, inserts valid figure markup at markers, sets the featured image, and attempts Rank Math metadata. Repeated creates update an existing draft with the exact slug. Byte-identical local images are reused by SHA-256 content hash. After every save, the post is read back and its title, slug, body, excerpt, featured image, categories, and tags must match before success is reported. Explicit minimums can be supplied through `image_policy` when needed.
 
 Temporary read failures receive bounded retries. Writes are never blindly retried. On a definite failure, the helper rolls back only media created by the current operation and preserves reused attachments.
