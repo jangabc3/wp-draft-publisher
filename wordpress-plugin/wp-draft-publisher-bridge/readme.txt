@@ -2,15 +2,15 @@
 Contributors: wp-draft-publisher
 Requires at least: 5.6
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Permission-checked Rank Math metadata and an atomic draft-only REST update guard for WP Draft Publisher.
+Permission-checked SEO metadata, guarded draft updates, and private recovery snapshots for WP Draft Publisher.
 
 == Description ==
 
-This small companion plugin exposes only the three Rank Math post-meta fields used by WP Draft Publisher. It rejects tool-tagged REST updates when the target post is no longer a draft or changed after the agent read it. The plugin stores no credentials and provides no publishing operation.
+This companion plugin exposes only the three Rank Math post-meta fields used by WP Draft Publisher. It rejects tool-tagged REST updates when the target post is no longer a draft or changed after the agent read it. Before an accepted update it stores a private recovery snapshot. Permission-checked restoration works only for drafts, verifies the restored state, and preserves a recovery point for the state it replaced. The plugin stores no credentials and provides no publishing operation.
 
 == Installation ==
 
@@ -19,6 +19,10 @@ This small companion plugin exposes only the three Rank Math post-meta fields us
 3. Confirm that the bridge and atomic draft guard are reported as available.
 
 == Changelog ==
+
+= 1.2.0 =
+* Store private recovery snapshots before guarded draft updates.
+* Add permission-checked snapshot listing and verified draft-only restoration.
 
 = 1.1.0 =
 * Reject stale draft updates with an atomic modified-time comparison.

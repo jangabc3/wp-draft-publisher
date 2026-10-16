@@ -41,6 +41,13 @@ class PluginSourceTests(unittest.TestCase):
         self.assertIn("x-wpdp-expected-modified-gmt", source)
         self.assertIn("post_modified_gmt", source)
         self.assertIn("wpdp_post_changed_since_read", source)
+        self.assertIn("wpdp_bridge_capture_snapshot", source)
+        self.assertIn("/snapshots/(?P<snapshot_id>", source)
+        self.assertIn("wpdp_bridge_restore_snapshot", source)
+        self.assertIn("WPDP_SNAPSHOT_LIMIT", source)
+        self.assertIn("wpdp_bridge_payload_matches_post", source)
+        self.assertIn("before_delete_post", source)
+        self.assertIn("'recovered' => $recovered", source)
         self.assertIn("'draft' !== get_post_status($post_id)", source)
         self.assertIn("array('status' => 409)", source)
         self.assertIn("add_filter('rest_pre_insert_post'", source)
@@ -54,8 +61,9 @@ class BridgeDiagnosticsTests(unittest.TestCase):
         output = io.StringIO()
         with patch.object(wordpress, "api", side_effect=fake_api), patch.object(
             wordpress, "bridge_status", return_value={
-                "version": "1.1.0", "atomic_draft_guard": True,
+                "version": "1.2.0", "atomic_draft_guard": True,
                 "optimistic_locking": True,
+                "snapshots": True, "snapshot_limit": 20,
                 "rank_math_meta": ["rank_math_title"],
             }
         ), patch.object(wordpress, "SITE", "https://example.test"), patch.object(
@@ -66,6 +74,8 @@ class BridgeDiagnosticsTests(unittest.TestCase):
         self.assertTrue(result["checks"]["bridge"]["ok"])
         self.assertTrue(result["checks"]["bridge"]["atomic_draft_guard"])
         self.assertTrue(result["checks"]["bridge"]["optimistic_locking"])
+        self.assertTrue(result["checks"]["bridge"]["snapshots"])
+        self.assertEqual(result["checks"]["bridge"]["snapshot_limit"], 20)
 
 
 if __name__ == "__main__":

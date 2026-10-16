@@ -138,6 +138,8 @@ Draft updates use optimistic locking. The client records the draft's `modified_g
 
 After the post and SEO requests, the helper reads the post back in edit context and verifies the title, slug, raw body, excerpt, featured image, categories, and tags. A successful write returns `"verification_status":"verified"`. Keep the WordPress block editor closed during the command because a stale browser autosave can overwrite a REST update after it is saved.
 
+Bridge version 1.2.0 or later stores a private server-side snapshot before each guarded draft update and retains the newest 20 snapshots per post. List recovery points with `scripts/run.ps1 snapshots --id <post-id>`. Restore one with `scripts/run.ps1 restore-snapshot --snapshot-id <snapshot-id>`. Restoration is permission checked, works only on drafts, verifies the result, and creates another recovery point before changing the post.
+
 Authenticated `GET` requests use short, bounded retries for temporary connection failures and HTTP 429/502/503/504 responses. Mutating requests are sent once. If a create response is uncertain, the helper checks the stable slug before deciding whether the draft exists. When preparation or saving definitely fails, it deletes only attachments created during that operation; reused media is never rolled back.
 
 ## Tests

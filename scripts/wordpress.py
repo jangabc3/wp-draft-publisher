@@ -583,6 +583,8 @@ def doctor():
         "version": bridge.get("version") if bridge_available else None,
         "atomic_draft_guard": bool(bridge.get("atomic_draft_guard")) if bridge_available else False,
         "optimistic_locking": bool(bridge.get("optimistic_locking")) if bridge_available else False,
+        "snapshots": bool(bridge.get("snapshots")) if bridge_available else False,
+        "snapshot_limit": bridge.get("snapshot_limit") if bridge_available else None,
         "rank_math_meta": bridge.get("rank_math_meta", []) if bridge_available else [],
     }
     output = {
@@ -629,6 +631,29 @@ def inspect_post(post_id):
         },
     }
     print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
+
+
+def list_snapshots(post_id):
+    if isinstance(post_id, bool) or not isinstance(post_id, int) or post_id < 1:
+        fail("invalid_post_id", post_id)
+    result = rest_api("GET", f"wp-draft-publisher/v1/posts/{post_id}/snapshots", soft=True)
+    if result.get("_error"):
+        fail("snapshot_bridge_unavailable", result)
+    print(json.dumps({"ok": True, **result}, ensure_ascii=False, separators=(",", ":")))
+
+
+def restore_snapshot(snapshot_id):
+    if isinstance(snapshot_id, bool) or not isinstance(snapshot_id, int) or snapshot_id < 1:
+        fail("invalid_snapshot_id", snapshot_id)
+    result = rest_api(
+        "POST",
+        f"wp-draft-publisher/v1/snapshots/{snapshot_id}/restore",
+        data={},
+        soft=True,
+    )
+    if result.get("_error"):
+        fail("snapshot_restore_failed", result)
+    print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
 
 
 def normalized_saved_text(value):
@@ -758,6 +783,8 @@ def save_draft(payload_path, post_id=None):
         "verification_status": "verified",
         "verified_modified": verification.get("modified"),
         "verified_modified_gmt": verification.get("modified_gmt"),
+        "snapshot_id": result.get("wpdp_snapshot_id"),
+        "operation_id": result.get("wpdp_operation_id"),
     }
     print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
 
@@ -769,6 +796,10 @@ def main():
     sub.add_parser("doctor")
     inspect = sub.add_parser("inspect")
     inspect.add_argument("--id", required=True, type=int)
+    snapshots = sub.add_parser("snapshots")
+    snapshots.add_argument("--id", required=True, type=int)
+    restore = sub.add_parser("restore-snapshot")
+    restore.add_argument("--snapshot-id", required=True, type=int)
     draft = sub.add_parser("draft")
     draft.add_argument("--input", required=True)
     update = sub.add_parser("update-draft")
@@ -785,6 +816,10 @@ def main():
         doctor()
     elif args.command == "inspect":
         inspect_post(args.id)
+    elif args.command == "snapshots":
+        list_snapshots(args.id)
+    elif args.command == "restore-snapshot":
+        restore_snapshot(args.snapshot_id)
     elif args.command == "draft":
         save_draft(args.input)
     elif args.command == "dry-run":
