@@ -62,7 +62,7 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
         prepare.assert_not_called()
         self.assertEqual(
             calls,
-            [("GET", "posts/42", None, {"context": "edit", "_fields": "id,status"})],
+            [("GET", "posts/42", None, {"context": "edit", "_fields": "id,status,modified_gmt"})],
         )
         error = json.loads(output.getvalue())
         self.assertEqual(error["error"], "post_not_draft")
@@ -126,7 +126,7 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
             if endpoint == "posts":
                 return []
             if method == "GET":
-                return {"id": 42, "status": "draft"}
+                return {"id": 42, "status": "draft", "modified_gmt": "2026-10-16T01:00:00"}
             if data and "meta" in data:
                 return {"meta": data["meta"]}
             return {
@@ -157,7 +157,13 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
         update_request = requests[3]
         self.assertEqual(update_request[0:2], ("POST", "posts/42"))
         self.assertNotIn("status", update_request[2])
-        self.assertEqual(update_request[3], {"X-WPDP-Draft-Only": "1"})
+        self.assertEqual(
+            update_request[3],
+            {
+                "X-WPDP-Draft-Only": "1",
+                "X-WPDP-Expected-Modified-GMT": "2026-10-16T01:00:00",
+            },
+        )
 
     def test_status_change_during_preparation_stops_post_update(self):
         requests = []
@@ -184,6 +190,31 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
 
         self.assertEqual([request[0] for request in requests], ["GET", "GET", "GET"])
         self.assertFalse(any(request[0] == "POST" for request in requests))
+
+    def test_modified_draft_is_rejected_before_post_update(self):
+        requests = []
+
+        def fake_api(method, endpoint, data=None, headers=None, query=None, soft=False):
+            requests.append((method, endpoint, data, headers))
+            if endpoint == "posts":
+                return []
+            reads = [item for item in requests if item[0] == "GET" and item[1] == "posts/42"]
+            modified = "2026-10-16T01:00:00" if len(reads) == 1 else "2026-10-16T01:01:00"
+            return {"id": 42, "status": "draft", "modified_gmt": modified}
+
+        prepared = (
+            {"title": "Updated", "content": "Body", "featured_media": 11},
+            [11],
+            {"rank_math_title": "SEO"},
+        )
+        output = io.StringIO()
+        with patch.object(wordpress, "api", side_effect=fake_api), patch.object(
+            wordpress, "prepare_post", return_value=prepared
+        ), redirect_stdout(output), self.assertRaises(SystemExit):
+            wordpress.save_draft(self.payload_file(), 42)
+
+        self.assertFalse(any(item[0] == "POST" for item in requests))
+        self.assertEqual(json.loads(output.getvalue())["error"], "post_changed_since_read")
 
 
 class CreateDraftTests(PayloadFileMixin, unittest.TestCase):

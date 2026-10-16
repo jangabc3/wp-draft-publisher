@@ -134,6 +134,8 @@ Dry-run may issue authenticated `GET` requests to verify the target draft, exist
 
 Every payload must include a stable, non-empty `slug`. A repeated `draft` command updates the existing draft with that exact slug in place. A slug owned by a published, scheduled, private, pending, or trashed post is treated as a conflict. Local images use deterministic `wpdp-<sha256>` media slugs, so byte-identical files are reused even when their local filenames differ.
 
+Draft updates use optimistic locking. The client records the draft's `modified_gmt` value before preparing media and taxonomy, checks it again before the write, and sends it to bridge version 1.1.0 or later for an atomic server-side comparison. If a person or another process changed the draft, the update stops with `post_changed_since_read` instead of overwriting newer work.
+
 After the post and SEO requests, the helper reads the post back in edit context and verifies the title, slug, raw body, excerpt, featured image, categories, and tags. A successful write returns `"verification_status":"verified"`. Keep the WordPress block editor closed during the command because a stale browser autosave can overwrite a REST update after it is saved.
 
 Authenticated `GET` requests use short, bounded retries for temporary connection failures and HTTP 429/502/503/504 responses. Mutating requests are sent once. If a create response is uncertain, the helper checks the stable slug before deciding whether the draft exists. When preparation or saving definitely fails, it deletes only attachments created during that operation; reused media is never rolled back.

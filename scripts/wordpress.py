@@ -422,7 +422,7 @@ def find_posts_by_slug(slug):
             "status": "any",
             "context": "edit",
             "per_page": 100,
-            "_fields": "id,status,slug,link,modified",
+            "_fields": "id,status,slug,link,modified,modified_gmt",
         },
     )
     return [item for item in matches if item.get("slug") == slug]
@@ -516,13 +516,13 @@ def prepare_post(payload, include_status=True, created_media=None):
     return post, uploaded, meta
 
 
-def assert_draft_post(post_id):
+def assert_draft_post(post_id, expected_modified_gmt=None):
     if isinstance(post_id, bool) or not isinstance(post_id, int) or post_id < 1:
         fail("invalid_post_id", post_id)
     existing = api(
         "GET",
         f"posts/{post_id}",
-        query={"context": "edit", "_fields": "id,status"},
+        query={"context": "edit", "_fields": "id,status,modified_gmt"},
     )
     existing_status = existing.get("status")
     if existing.get("id") != post_id or existing_status != "draft":
@@ -530,6 +530,18 @@ def assert_draft_post(post_id):
             "post_not_draft",
             {"id": post_id, "status": existing_status or "unknown"},
         )
+    current_modified_gmt = existing.get("modified_gmt")
+    if expected_modified_gmt and current_modified_gmt != expected_modified_gmt:
+        fail(
+            "post_changed_since_read",
+            {
+                "id": post_id,
+                "expected_modified_gmt": expected_modified_gmt,
+                "current_modified_gmt": current_modified_gmt or "unknown",
+                "guidance": "Read the latest draft, review the changes, and prepare a new update.",
+            },
+        )
+    return existing
 
 
 def cleanup_created_media(media_ids):
@@ -570,6 +582,7 @@ def doctor():
         "details": bridge.get("_details") if not bridge_available else None,
         "version": bridge.get("version") if bridge_available else None,
         "atomic_draft_guard": bool(bridge.get("atomic_draft_guard")) if bridge_available else False,
+        "optimistic_locking": bool(bridge.get("optimistic_locking")) if bridge_available else False,
         "rank_math_meta": bridge.get("rank_math_meta", []) if bridge_available else [],
     }
     output = {
@@ -590,7 +603,7 @@ def inspect_post(post_id):
         f"posts/{post_id}",
         query={
             "context": "edit",
-            "_fields": "id,status,slug,title,modified,featured_media,categories,tags,meta,link",
+            "_fields": "id,status,slug,title,modified,modified_gmt,featured_media,categories,tags,meta,link",
         },
     )
     meta = post.get("meta", {}) if isinstance(post.get("meta"), dict) else {}
@@ -603,6 +616,7 @@ def inspect_post(post_id):
             "slug": post.get("slug"),
             "title": post.get("title", {}).get("raw") or post.get("title", {}).get("rendered", ""),
             "modified": post.get("modified"),
+            "modified_gmt": post.get("modified_gmt"),
             "featured_media": post.get("featured_media"),
             "category_ids": post.get("categories", []),
             "tag_ids": post.get("tags", []),
@@ -638,7 +652,7 @@ def verify_saved_post(post_id, expected_post):
             "context": "edit",
             "_fields": (
                 "id,status,slug,title,content,excerpt,featured_media,"
-                "categories,tags,modified,link"
+                "categories,tags,modified,modified_gmt,link"
             ),
         },
     )
@@ -670,13 +684,15 @@ def verify_saved_post(post_id, expected_post):
         )
     return {
         "modified": saved.get("modified"),
+        "modified_gmt": saved.get("modified_gmt"),
         "link": saved.get("link"),
     }
 
 
 def save_draft(payload_path, post_id=None):
+    initial_post = None
     if post_id is not None:
-        assert_draft_post(post_id)
+        initial_post = assert_draft_post(post_id)
     payload = load_payload(payload_path)
     validate_payload(payload)
     require_nonempty_string(payload.get("slug"), "slug")
@@ -684,7 +700,7 @@ def save_draft(payload_path, post_id=None):
     action = "updated_draft" if post_id is not None else "created_draft"
     if existing_draft:
         post_id = existing_draft.get("id")
-        assert_draft_post(post_id)
+        initial_post = assert_draft_post(post_id)
         action = "updated_existing_draft"
     created_media = []
     try:
@@ -694,12 +710,16 @@ def save_draft(payload_path, post_id=None):
             created_media=created_media,
         )
         if post_id is not None:
-            assert_draft_post(post_id)
+            assert_draft_post(post_id, initial_post.get("modified_gmt") if initial_post else None)
     except SystemExit:
         cleanup_created_media(created_media)
         raise
     endpoint = f"posts/{post_id}" if post_id else "posts"
-    post_headers = {"X-WPDP-Draft-Only": "1"} if post_id is not None else None
+    post_headers = None
+    if post_id is not None:
+        post_headers = {"X-WPDP-Draft-Only": "1"}
+        if initial_post and initial_post.get("modified_gmt"):
+            post_headers["X-WPDP-Expected-Modified-GMT"] = initial_post["modified_gmt"]
     result = api("POST", endpoint, post, headers=post_headers, soft=True)
     if result.get("_error"):
         recovered = None
@@ -737,6 +757,7 @@ def save_draft(payload_path, post_id=None):
         "recovery_status": recovery_status,
         "verification_status": "verified",
         "verified_modified": verification.get("modified"),
+        "verified_modified_gmt": verification.get("modified_gmt"),
     }
     print(json.dumps(output, ensure_ascii=False, separators=(",", ":")))
 

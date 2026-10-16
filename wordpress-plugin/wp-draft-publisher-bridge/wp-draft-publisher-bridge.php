@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Draft Publisher REST Bridge
  * Description: Exposes permission-checked SEO metadata and an atomic draft-only REST update guard for WP Draft Publisher.
- * Version: 1.0.2
+ * Version: 1.1.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPL-2.0-or-later
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('WPDP_BRIDGE_VERSION', '1.0.2');
+define('WPDP_BRIDGE_VERSION', '1.1.0');
 
 /**
  * Limit registered fields to the Rank Math values used by the publisher.
@@ -69,6 +69,21 @@ function wpdp_bridge_guard_draft_update($prepared_post, $request) {
         );
     }
 
+    $expected_modified_gmt = $request->get_header('x-wpdp-expected-modified-gmt');
+    if ($expected_modified_gmt) {
+        $current_modified_gmt = get_post_field('post_modified_gmt', $post_id, 'raw');
+        if (!$current_modified_gmt || !hash_equals($current_modified_gmt, $expected_modified_gmt)) {
+            return new WP_Error(
+                'wpdp_post_changed_since_read',
+                __('The draft changed after the agent read it. Reload and review the latest version before saving.', 'wp-draft-publisher-bridge'),
+                array(
+                    'status'               => 409,
+                    'current_modified_gmt' => $current_modified_gmt,
+                )
+            );
+        }
+    }
+
     return $prepared_post;
 }
 add_filter('rest_pre_insert_post', 'wpdp_bridge_guard_draft_update', 10, 2);
@@ -82,6 +97,7 @@ function wpdp_bridge_status() {
         array(
             'version'            => WPDP_BRIDGE_VERSION,
             'atomic_draft_guard' => true,
+            'optimistic_locking' => true,
             'rank_math_meta'     => array(
                 'rank_math_title',
                 'rank_math_description',
