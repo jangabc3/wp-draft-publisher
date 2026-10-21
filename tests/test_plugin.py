@@ -32,7 +32,8 @@ class PluginSourceTests(unittest.TestCase):
         with zipfile.ZipFile(archive) as package:
             for filename in ("readme.txt", "wp-draft-publisher-bridge.php"):
                 packaged = package.read(f"draft-publisher-rest-bridge/{filename}")
-                self.assertEqual(packaged, (source_root / filename).read_bytes())
+                source = (source_root / filename).read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+                self.assertEqual(packaged, source)
 
     def test_plugin_has_permission_checked_rank_math_fields_and_status_route(self):
         source = PLUGIN.read_text(encoding="utf-8")

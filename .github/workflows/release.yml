@@ -12,8 +12,8 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Check tag and project version
@@ -44,8 +44,8 @@ jobs:
           - wordpress-image: wordpress:php8.3-apache
             scenario: all
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Run live WordPress integration tests
@@ -55,8 +55,8 @@ jobs:
   package-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Build WordPress bridge
@@ -71,8 +71,8 @@ jobs:
     needs: [validate, integration, package-windows]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Build WordPress bridge

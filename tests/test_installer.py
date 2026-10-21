@@ -64,6 +64,13 @@ class InstallerTests(unittest.TestCase):
         self.assertIn("Help must remain available before first-time configuration", runner)
         self.assertLess(runner.index("@('--help', '-h')"), runner.index("Resolve-WpdpSite $siteName"))
 
+    def test_integration_readiness_probe_is_cross_platform(self):
+        integration = (ROOT / "scripts" / "run-integration.ps1").read_text(encoding="utf-8")
+        self.assertIn("Get-Command curl.exe", integration)
+        self.assertIn("Get-Command curl -CommandType Application", integration)
+        self.assertIn("& $curlPath", integration)
+        self.assertNotIn("& curl.exe", integration)
+
 
 if __name__ == "__main__":
     unittest.main()

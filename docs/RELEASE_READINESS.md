@@ -5,7 +5,7 @@ Last local verification: 2026-10-21
 ## Completed locally
 
 - The public skill passes the skill frontmatter and scaffold validator.
-- All 134 tests pass on Windows with Python 3.13 and in Linux containers with Python 3.9 and 3.13.
+- All 135 tests pass on Windows with Python 3.13 and in Linux containers with Python 3.9 and 3.13.
 - The public-release scan finds no credentials, private keys, verification tokens, personal site URLs, or generated article files.
 - The bridge passes PHP 8.3 syntax validation.
 - WordPress 5.6/PHP 7.4 passes the real core draft, media, recovery, concurrency, and network-failure flow.

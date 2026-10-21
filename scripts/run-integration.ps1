@@ -19,6 +19,10 @@ if (-not $runtime.StartsWith($integrationPrefix, [StringComparison]::OrdinalIgno
 
 docker info *> $null
 if ($LASTEXITCODE -ne 0) { throw 'Docker Desktop is installed but its engine is not running.' }
+$curlCommand = Get-Command curl.exe -ErrorAction SilentlyContinue
+if (-not $curlCommand) { $curlCommand = Get-Command curl -CommandType Application -ErrorAction SilentlyContinue }
+if (-not $curlCommand) { throw 'curl is required for the HTTPS readiness check.' }
+$curlPath = $curlCommand.Source
 
 $env:WPDP_WORDPRESS_IMAGE = $WordPressImage
 $env:WPDP_CLI_IMAGE = if ($WordPressImage -match 'php7\.4') { 'wordpress:cli-php7.4' } else { 'wordpress:cli-2.12-php8.3' }
@@ -66,7 +70,7 @@ try {
     Invoke-Compose @('up', '-d', 'proxy')
     $webReady = $false
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
-        & curl.exe --silent --show-error --fail --insecure https://localhost/wp-json/ *> $null
+        & $curlPath --silent --show-error --fail --insecure https://localhost/wp-json/ *> $null
         if ($LASTEXITCODE -eq 0) { $webReady = $true; break }
         Start-Sleep -Seconds 2
     }

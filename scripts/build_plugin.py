@@ -11,6 +11,14 @@ SOURCE = ROOT / "wordpress-plugin" / SOURCE_NAME
 DIST = ROOT / "dist"
 ARCHIVE = DIST / f"{PLUGIN_NAME}.zip"
 FIXED_TIMESTAMP = (2020, 1, 1, 0, 0, 0)
+TEXT_SUFFIXES = {".md", ".php", ".txt"}
+
+
+def packaged_bytes(source):
+    value = source.read_bytes()
+    if source.suffix.casefold() in TEXT_SUFFIXES:
+        return value.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return value
 
 
 def main():
@@ -23,7 +31,7 @@ def main():
             info = zipfile.ZipInfo(f"{PLUGIN_NAME}/{relative}", FIXED_TIMESTAMP)
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
-            target.writestr(info, source.read_bytes())
+            target.writestr(info, packaged_bytes(source))
     print(json.dumps({"ok": True, "path": str(ARCHIVE), "bytes": ARCHIVE.stat().st_size}))
 
 
