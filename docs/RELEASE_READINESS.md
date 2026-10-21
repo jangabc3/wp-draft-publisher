@@ -26,15 +26,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release-
 
 Use `-SkipIntegration` only for a quick repeat after documentation or packaging-only changes. A release tag must use the full command.
 
-## Required when the GitHub repository is created
+## Completed on GitHub
 
-These actions depend on the final public GitHub repository:
+- The verified `main` branch is public at <https://github.com/jangabc3/wp-draft-publisher>.
+- GitHub private vulnerability reporting is enabled.
+- The Windows/Ubuntu Python 3.9/3.13 matrix and both live WordPress integration jobs passed in [GitHub Actions run 39560628537](https://github.com/jangabc3/wp-draft-publisher/actions/runs/39560628537).
 
-1. Create the public repository, add it as `origin`, and push the verified `main` branch.
-2. Enable GitHub private vulnerability reporting so `SECURITY.md` points to an available channel.
-3. Push the release commit and confirm the Windows/Ubuntu Python 3.9/3.13 workflow matrix passes.
-4. Create the annotated tag `v1.0.0`; it must match `VERSION` exactly.
-5. Wait for the release workflow, including both WordPress integration jobs and the clean Windows package job.
-6. Download the public ZIPs and checksum file from the generated release, verify the checksums, and repeat the Korean installation guide once from the public URLs.
+## Remaining release actions
+
+1. Create the annotated tag `v1.0.0`; it must match `VERSION` exactly.
+2. Wait for the release workflow, including both WordPress integration jobs and the clean Windows package job.
+3. Download the public ZIPs and checksum file from the generated release, verify the checksums, and repeat the Korean installation guide once from the public URLs.
 
 Do not publish the release when any item above fails. Fix the source, rebuild, and rerun the complete gate instead of replacing individual ZIP files by hand.
