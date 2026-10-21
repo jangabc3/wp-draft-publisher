@@ -19,8 +19,10 @@ if (-not $runtime.StartsWith($integrationPrefix, [StringComparison]::OrdinalIgno
 
 docker info *> $null
 if ($LASTEXITCODE -ne 0) { throw 'Docker Desktop is installed but its engine is not running.' }
-$curlCommand = Get-Command curl.exe -ErrorAction SilentlyContinue
-if (-not $curlCommand) { $curlCommand = Get-Command curl -CommandType Application -ErrorAction SilentlyContinue }
+$curlCommand = Get-Command curl.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $curlCommand) {
+    $curlCommand = Get-Command curl -CommandType Application -All -ErrorAction SilentlyContinue | Select-Object -First 1
+}
 if (-not $curlCommand) { throw 'curl is required for the HTTPS readiness check.' }
 $curlPath = $curlCommand.Source
 
