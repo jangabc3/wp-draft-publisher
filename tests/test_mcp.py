@@ -1,8 +1,8 @@
 import importlib.util
-import io
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -28,7 +28,37 @@ class McpProtocolTests(unittest.TestCase):
         names = {item["name"] for item in response["result"]["tools"]}
         self.assertEqual(names, mcp.TOOL_NAMES)
         self.assertIn("wpdp_save_draft", names)
+        self.assertIn("wpdp_quality_check", names)
+        self.assertIn("wpdp_profile", names)
+        self.assertIn("wpdp_preview_plan", names)
+        self.assertIn("wpdp_sites", names)
+        self.assertIn("wpdp_content_plan", names)
         self.assertNotIn("publish", names)
+
+    def test_profile_tool_reads_non_secret_profile(self):
+        temporary = tempfile.NamedTemporaryFile(mode="w", dir=ROOT / "tests", suffix=".json", encoding="utf-8", delete=False)
+        json.dump({"schema_version": 2, "site_name": "Test Site"}, temporary)
+        temporary.close()
+        path = Path(temporary.name)
+        self.addCleanup(lambda: path.unlink(missing_ok=True))
+        with patch.dict("os.environ", {"WPDP_PROFILE_PATH": str(path)}):
+            response = mcp.handle_message({
+                "jsonrpc": "2.0", "id": 8, "method": "tools/call",
+                "params": {"name": "wpdp_profile", "arguments": {}},
+            })
+        payload = json.loads(response["result"]["content"][0]["text"])
+        self.assertTrue(payload["configured"])
+        self.assertEqual(payload["profile"]["site_name"], "Test Site")
+
+    def test_preview_plan_uses_read_only_dry_run(self):
+        with patch.object(mcp.wordpress, "dry_run") as dry_run:
+            dry_run.side_effect = lambda path, post_id: print(json.dumps({"ok": True, "plan": {"operation": "create_draft"}}))
+            response = mcp.handle_message({
+                "jsonrpc": "2.0", "id": 9, "method": "tools/call",
+                "params": {"name": "wpdp_preview_plan", "arguments": {"input_path": "C:/draft.json"}},
+            })
+        self.assertFalse(response["result"]["isError"])
+        dry_run.assert_called_once_with("C:/draft.json", None)
 
     def test_notifications_do_not_return_a_response(self):
         self.assertIsNone(mcp.handle_message({"jsonrpc": "2.0", "method": "notifications/initialized"}))

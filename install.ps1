@@ -9,6 +9,8 @@ $ErrorActionPreference = 'Stop'
 $source = $PSScriptRoot
 $resolvedSource = [IO.Path]::GetFullPath($source)
 $resolvedDestination = [IO.Path]::GetFullPath($Destination)
+$versionPath = Join-Path $source 'VERSION'
+$projectVersion = if (Test-Path -LiteralPath $versionPath) { (Get-Content -LiteralPath $versionPath -Raw).Trim() } else { 'development' }
 
 if ($resolvedSource.TrimEnd('\') -eq $resolvedDestination.TrimEnd('\')) {
     throw 'The install destination cannot be the source repository.'
@@ -23,7 +25,7 @@ function Get-PythonCommand {
 }
 
 function Assert-PythonVersion([string]$PythonCommand) {
-    $versionText = & $PythonCommand -c 'import sys; print(".".join(map(str, sys.version_info[:3])))'
+    $versionText = & $PythonCommand -c 'import sys; print(*sys.version_info[:3], sep=chr(46))'
     if ($LASTEXITCODE -ne 0 -or -not $versionText) {
         throw 'Python was found but could not be started.'
     }
@@ -36,7 +38,7 @@ function Assert-PythonVersion([string]$PythonCommand) {
 
 function Copy-SkillFiles([string]$From, [string]$To) {
     New-Item -ItemType Directory -Force -Path $To | Out-Null
-    $excluded = @('.git', '.github', '__pycache__')
+    $excluded = @('.git', '.github', '__pycache__', 'integration', 'release', 'tests')
     foreach ($item in Get-ChildItem -LiteralPath $From -Force) {
         if ($excluded -contains $item.Name) { continue }
         Copy-Item -LiteralPath $item.FullName -Destination $To -Recurse -Force
@@ -47,6 +49,7 @@ function Copy-SkillFiles([string]$From, [string]$To) {
 
 $python = Get-PythonCommand
 Assert-PythonVersion $python
+Write-Host "[INFO] WP Draft Publisher $projectVersion"
 
 if (-not $SkipTests) {
     Write-Host '[1/4] Running the bundled safety tests...'

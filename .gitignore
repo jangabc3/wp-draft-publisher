@@ -5,3 +5,10 @@ credentials.json
 *.log
 drafts/
 generated-images/
+release/
+.wpdp-release-test-*/
+.release-smoke/
+.release-smoke-installed/
+.release-acceptance-*/
+.release-repeat-*/
+tmp/

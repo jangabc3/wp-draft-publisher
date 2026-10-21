@@ -59,6 +59,38 @@ class DiagnosticTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["checks"]["media_read"]["error"], "wordpress_http_403")
 
+    def test_doctor_returns_detected_categories_permissions_and_site_details(self):
+        def fake_api(method, endpoint, data=None, headers=None, query=None, soft=False):
+            if endpoint == "users/me":
+                return {
+                    "id": 2, "name": "Editor", "roles": ["editor"],
+                    "capabilities": {"edit_posts": True, "upload_files": True, "manage_categories": True},
+                }
+            if endpoint == "categories":
+                return [{"id": 3, "name": "Finance", "slug": "finance"}]
+            if endpoint == "tags":
+                return [{"id": 4, "name": "Guide", "slug": "guide"}]
+            return []
+
+        bridge = {
+            "version": "1.5.0", "site_name": "Example", "language": "ko_KR",
+            "wordpress_version": "6.8", "home_url": "https://example.test/",
+            "seo_providers": ["rank-math"], "active_seo_provider": "rank-math",
+        }
+        output = io.StringIO()
+        with patch.object(wordpress, "api", side_effect=fake_api), patch.object(
+            wordpress, "bridge_status", return_value=bridge
+        ), patch.object(wordpress, "SITE", "https://example.test"), patch.object(
+            wordpress, "USER", "editor"
+        ), patch.object(wordpress, "PASSWORD", "secret"), redirect_stdout(output):
+            wordpress.doctor()
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["site_details"]["language"], "ko_KR")
+        self.assertEqual(result["categories"][0]["name"], "Finance")
+        self.assertEqual(result["tags"][0]["name"], "Guide")
+        self.assertTrue(result["user"]["permissions"]["create_drafts"])
+        self.assertFalse(result["user"]["permissions"]["publish_posts"])
+
     def test_inspect_returns_summary_without_content(self):
         post = {
             "id": 42, "status": "draft", "slug": "sample",

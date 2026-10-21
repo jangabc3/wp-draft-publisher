@@ -1,0 +1,95 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check tag and project version
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ("v$version" -ne "${{ github.ref_name }}") {
+            throw "Tag ${{ github.ref_name }} does not match VERSION $version"
+          }
+      - name: Scan public files
+        run: python scripts/check_public_release.py
+      - name: Check repository structure and documentation links
+        run: python scripts/check_repository.py
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Lint WordPress bridge
+        run: php -l wordpress-plugin/wp-draft-publisher-bridge/wp-draft-publisher-bridge.php
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - wordpress-image: wordpress:5.6-php7.4-apache
+            scenario: core
+          - wordpress-image: wordpress:php8.3-apache
+            scenario: all
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Run live WordPress integration tests
+        shell: pwsh
+        run: ./scripts/run-integration.ps1 -WordPressImage '${{ matrix.wordpress-image }}' -Scenario '${{ matrix.scenario }}'
+
+  package-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build WordPress bridge
+        run: python scripts/build_plugin.py
+      - name: Build release artifacts
+        run: python scripts/build_release.py
+      - name: Test clean Windows installation from release ZIP
+        shell: pwsh
+        run: ./scripts/test-release-package.ps1
+
+  publish:
+    needs: [validate, integration, package-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build WordPress bridge
+        run: python scripts/build_plugin.py
+      - name: Build release artifacts
+        run: python scripts/build_release.py
+      - name: Verify checksums
+        working-directory: release
+        run: sha256sum --check SHA256SUMS.txt
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${{ github.ref_name }}"
+          release/wp-draft-publisher-${{ github.ref_name }}.zip
+          release/draft-publisher-rest-bridge.zip
+          release/SHA256SUMS.txt
+          release/release-manifest.json
+          --title "WP Draft Publisher ${{ github.ref_name }}"
+          --notes-file "docs/RELEASE_NOTES_${GITHUB_REF_NAME}.md"

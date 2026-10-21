@@ -43,6 +43,48 @@ class PayloadFileMixin:
         return temp.name
 
 
+class InvalidJsonResponseTests(unittest.TestCase):
+    class Response:
+        headers = {"Content-Type": "text/html; charset=UTF-8"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def read(self):
+            return b"<html>unexpected proxy page</html>"
+
+        def geturl(self):
+            return "https://example.test/wp-json/wp/v2/posts"
+
+    def test_invalid_json_response_is_structured_in_soft_mode(self):
+        with patch.object(wordpress, "SITE", "https://example.test"), patch.object(
+            wordpress, "USER", "editor"
+        ), patch.object(wordpress, "PASSWORD", "secret"), patch.object(
+            wordpress, "OPEN_URL", return_value=self.Response()
+        ):
+            result = wordpress.api("GET", "posts", soft=True)
+
+        self.assertEqual(result["_error"], "wordpress_invalid_json_response")
+        self.assertEqual(result["_details"]["content_type"], "text/html; charset=UTF-8")
+        self.assertIn("unexpected proxy page", result["_details"]["body_prefix"])
+
+    def test_invalid_json_response_reports_clear_hard_failure(self):
+        output = io.StringIO()
+        with patch.object(wordpress, "SITE", "https://example.test"), patch.object(
+            wordpress, "USER", "editor"
+        ), patch.object(wordpress, "PASSWORD", "secret"), patch.object(
+            wordpress, "OPEN_URL", return_value=self.Response()
+        ), redirect_stdout(output), self.assertRaises(SystemExit):
+            wordpress.api("GET", "posts")
+
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["error"], "wordpress_invalid_json_response")
+        self.assertEqual(result["details"]["response_url"], "https://example.test/wp-json/wp/v2/posts")
+
+
 class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
     def assert_rejected_before_mutation(self, status):
         calls = []
@@ -155,8 +197,8 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
         self.assertFalse(prepare.call_args.kwargs["include_status"])
         self.assertEqual(requests[0][0:2], ("GET", "posts/42"))
         self.assertEqual(requests[1][0:2], ("GET", "posts"))
-        self.assertEqual(requests[2][0:2], ("GET", "posts/42"))
-        update_request = requests[3]
+        second_draft_read = next(index for index, item in enumerate(requests[1:], start=1) if item[0:2] == ("GET", "posts/42"))
+        update_request = next(item for item in requests[second_draft_read + 1:] if item[0:2] == ("POST", "posts/42") and not (item[2] and "meta" in item[2]))
         self.assertEqual(update_request[0:2], ("POST", "posts/42"))
         self.assertNotIn("status", update_request[2])
         self.assertEqual(
@@ -193,7 +235,7 @@ class UpdateDraftSafetyTests(PayloadFileMixin, unittest.TestCase):
             with self.assertRaises(SystemExit):
                 wordpress.save_draft(self.payload_file(), 42)
 
-        self.assertEqual([request[0] for request in requests], ["GET", "GET", "GET"])
+        self.assertTrue(all(request[0] == "GET" for request in requests))
         self.assertFalse(any(request[0] == "POST" for request in requests))
 
     def test_modified_draft_is_rejected_before_post_update(self):

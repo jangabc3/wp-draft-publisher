@@ -2,6 +2,12 @@
 
 A small Codex skill for creating image-rich WordPress drafts through the official REST API. It replaces repetitive browser editing with one compact, deterministic operation.
 
+[한국어 안내](README.ko.md) · [Installation](docs/INSTALL.md) · [User scenarios](docs/USER-SCENARIOS.md) · [Security](SECURITY.md)
+
+Current project version: **1.0.0**. The WordPress bridge is version **1.6.0** and follows its own compatibility version.
+
+Local release readiness and the GitHub-only final gates are recorded in [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md). Maintainers can run the complete pre-release check with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release-candidate.ps1`.
+
 ## What it does
 
 - Creates and updates drafts
@@ -15,10 +21,14 @@ A small Codex skill for creating image-rich WordPress drafts through the officia
 - Adds alt text and captions
 - Resolves or creates categories and tags
 - Inserts valid Gutenberg-friendly figure markup
-- Attempts Rank Math title, description, and focus keyword fields
+- Detects and saves Rank Math, Yoast SEO, or AIOSEO title, description, and focus keyword fields
+- Falls back to the native WordPress title and excerpt when no supported SEO plugin is active
+- Runs pre-save structure, SEO, link, source, duplicate-title, image-spacing, and mobile-markup checks
 - Reads the saved draft back and verifies its core fields before reporting success
 - Returns compact JSON suitable for low-token agent workflows
 - Exposes the same guarded workflow to Claude, Cursor, and other stdio MCP clients
+- Keeps credentials and editorial rules isolated across multiple named WordPress sites
+- Builds read-only content plans from category gaps, similar titles, internal-link candidates, and optional Search Console exports
 
 The command intentionally has no publish operation.
 
@@ -31,7 +41,7 @@ The command intentionally has no publish operation.
 
 ## Install on Windows
 
-Download and extract the release ZIP, then double-click `install.cmd`. The installer:
+Download `wp-draft-publisher-v1.0.0.zip` from GitHub Releases, verify its SHA-256 value against `SHA256SUMS.txt`, extract it, then double-click `install.cmd`. The installer:
 
 - checks for Python 3.9 or later;
 - runs the bundled safety tests;
@@ -67,6 +77,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\uninstall.ps1
 
 Add `-RemoveCredentials` only when the encrypted connection details should also be removed.
 
+See [`docs/UNINSTALL.md`](docs/UNINSTALL.md) for WordPress Application Password revocation and MCP client cleanup.
+
 ## Configure
 
 Run:
@@ -75,7 +87,7 @@ Run:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\setup-credentials.ps1"
 ```
 
-The application password is encrypted with Windows DPAPI and stored in `%LOCALAPPDATA%\WPDraftPublisher\credentials.json`. It is never stored in this repository.
+The application password is encrypted with Windows DPAPI and stored in the selected named site directory under `%LOCALAPPDATA%\WPDraftPublisher\sites\`. It is never stored in this repository. Existing single-site installations remain supported and migrate when reconfigured.
 
 Create or change the non-secret editorial profile:
 
@@ -83,13 +95,34 @@ Create or change the non-secret editorial profile:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\setup-profile.ps1"
 ```
 
-The profile records the site's language, audience, tone, typical length, image direction, FAQ preference, internal-link minimum, official-source policy, and SEO provider. It is stored outside the installed skill so upgrades do not overwrite it. Agents read it with `scripts/show-profile.ps1` before drafting.
+The interactive profile uses site name, language, categories, and SEO details detected during connection as suggested answers. It records the blog topic, audience, tone, typical length, image direction, default category, FAQ preference, internal-link minimum, official-source policy, and SEO provider. Existing answers become defaults when the profile is edited. It is stored outside the installed skill so upgrades do not overwrite it. Agents read it with `scripts/show-profile.ps1` or the `wpdp_profile` MCP tool before drafting.
 
 Verify the connection:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" verify
 ```
+
+### Multiple WordPress sites
+
+Add a site, configure its editorial profile, list sites, or change the default:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\setup-credentials.ps1" -ProfileName "company"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\setup-profile.ps1" -Site "company"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\list-sites.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\set-default-site.ps1" -Site "company"
+```
+
+Use `run.ps1 --site company <command>` for a one-off CLI selection. Set `WPDP_SITE=company` in an MCP server entry to bind that MCP session to one site. Each site keeps separate encrypted credentials, detected connection details, and editorial preferences. Remove one local profile with `remove-site.ps1 -Site company`; also revoke its Application Password in WordPress.
+
+### Read-only content planning
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" --site company content-plan --search-console "C:\reports\search-results.csv" --weeks 4 --per-week 2
+```
+
+The command reads the complete WordPress post and category inventory. It reports coverage gaps and similar titles, then uses an optional Search Console CSV or JSON export to rank new-article and update opportunities and propose internal links. The returned schedule is proposal-only; the command never creates, schedules, updates, or publishes a post. See [`references/content-planning.md`](references/content-planning.md).
 
 ## Create a draft
 
@@ -101,7 +134,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex
 
 ## Use with Claude, Cursor, or another MCP client
 
-The repository includes a dependency-free stdio MCP server. It exposes doctor, dry-run, draft create/update, compact inspection, recovery snapshots, and activity history. There is deliberately no publish tool.
+The repository includes a dependency-free stdio MCP server. It exposes site/profile discovery, doctor, quality-check, preview-plan/dry-run, content planning, draft create/update, compact inspection, recovery snapshots, and activity history. There is deliberately no publish tool.
 
 On Windows, complete the normal credential setup once and configure the MCP client to launch:
 
@@ -133,19 +166,27 @@ Both commands issue authenticated `GET` requests only. `doctor` reports authenti
 
 ## Preview without changes
 
-Run the full validation and inspect planned media and taxonomy actions without creating or updating anything:
+Run the focused quality audit without changing WordPress:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" dry-run --input "C:\path\draft.json"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" quality-check --input "C:\path\draft.json"
+```
+
+The report includes a score, blocking structural errors, and recommendations. `warn` mode reports recommendations without blocking a safe draft; `strict` mode blocks them. See [`references/quality-checks.md`](references/quality-checks.md).
+
+Run the full validation and show a concise pre-save plan without creating or updating anything:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" preview-plan --input "C:\path\draft.json"
 ```
 
 To preview an update, include the existing draft ID:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" dry-run --id 123 --input "C:\path\draft.json"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\wp-draft-publisher\scripts\run.ps1" preview-plan --id 123 --input "C:\path\draft.json"
 ```
 
-Dry-run may issue authenticated `GET` requests to verify the target draft, existing media, categories, and tags. It never sends `POST`, `PUT`, `PATCH`, or `DELETE` requests and returns `"would_mutate": false`.
+Preview-plan (also available as `dry-run`) may issue authenticated `GET` requests to verify the target draft, existing media, categories, and tags. It summarizes the target, image uploads/reuse, taxonomy, SEO provider, quality score, and safety rules. It never sends `POST`, `PUT`, `PATCH`, or `DELETE` requests and returns `"would_mutate": false`.
 
 `update-draft` first verifies that the target is still a draft. It stops before uploading media or changing taxonomy when the post has any other status. Update requests also omit the WordPress `status` field, so this tool cannot turn an existing public post back into a draft.
 
@@ -157,7 +198,7 @@ After the post and SEO requests, the helper reads the post back in edit context 
 
 Bridge version 1.2.0 or later stores a private server-side snapshot before each guarded draft update and retains the newest 20 snapshots per post. List recovery points with `scripts/run.ps1 snapshots --id <post-id>`. Restore one with `scripts/run.ps1 restore-snapshot --snapshot-id <snapshot-id>`. Restoration is permission checked, works only on drafts, verifies the result, and creates another recovery point before changing the post.
 
-Bridge version 1.3.0 or later also keeps a privacy-safe activity trail for agent draft creates, updates, restores, and the media IDs involved. It records no credentials, article body, or prompt text. Editors can review permitted records under **Tools → Draft Publisher Activity** or run `scripts/run.ps1 activity --limit 50`. The newest 500 records are retained.
+Bridge version 1.3.0 or later also keeps a privacy-safe activity trail for agent draft creates, updates, restores, and the media IDs involved. It records no credentials, article body, or prompt text. Bridge 1.5.0 adds **Tools → Draft Publisher**, where editors can review server readiness, setup guidance, recent activity, and permitted recovery snapshots. The same activity data is available with `scripts/run.ps1 activity --limit 50`. The newest 500 records are retained.
 
 Authenticated `GET` requests use short, bounded retries for temporary connection failures and HTTP 429/502/503/504 responses. Mutating requests are sent once. If a create response is uncertain, the helper checks the stable slug before deciding whether the draft exists. When preparation or saving definitely fails, it deletes only attachments created during that operation; reused media is never rolled back.
 
@@ -171,15 +212,40 @@ python -m unittest discover -s tests -v
 
 GitHub Actions runs the suite on Python 3.9 and 3.13 on Windows and Ubuntu.
 
+## Releases
+
+Release tags use `vMAJOR.MINOR.PATCH` and must match the `VERSION` file. A tag triggers unit tests, the real WordPress integration matrix, the public-file security scan, deterministic artifact builds, checksum verification, and GitHub Release creation.
+
+Each release contains:
+
+- `wp-draft-publisher-vX.Y.Z.zip` — complete installer package;
+- `draft-publisher-rest-bridge.zip` — optional WordPress bridge plugin;
+- `SHA256SUMS.txt` — artifact checksums; and
+- `release-manifest.json` — machine-readable version and hashes.
+
+Maintainers should complete [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) before pushing a release tag.
+
+### Real WordPress integration tests
+
+Docker tests start disposable MariaDB, WordPress, WP-CLI, and HTTPS reverse-proxy containers. They install WordPress, activate bridge 1.6.0, create a restricted editor and Application Password, and test the real REST boundary.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-integration.ps1
+```
+
+The suite verifies actual draft, media, category, and tag creation; server read-back; quality checks; native WordPress SEO fallback; Rank Math, Yoast, and AIOSEO metadata; explicit provider selection with all supported SEO plugins active; guarded concurrent updates; recovery snapshots; and recovery after the server commits a create while the response is lost. The environment and volumes are removed after the run. Add `-KeepEnvironment` only while debugging.
+
+GitHub Actions runs the core suite on WordPress 5.6 with PHP 7.4 and the full SEO matrix on the current WordPress image with PHP 8.3. The local endpoint uses a temporary two-day certificate trusted only by the test process.
+
 ## Preflight validation
 
-Before uploading media or creating taxonomy terms, the helper validates required text and SEO fields, taxonomy arrays, image policy values, image sources, alt text, marker uniqueness, and exact marker placement. Local files must use absolute paths and contain a valid JPEG, PNG, GIF, WebP, or AVIF signature. Existing WordPress media IDs are resolved with read-only requests before any upload begins. SVG and extension-spoofed files are rejected.
+Before uploading media or creating taxonomy terms, the helper validates required text and SEO fields, taxonomy arrays, image policy values, image sources, alt text, marker uniqueness, exact marker placement, headings, FAQ structure, links, duplicate titles, source coverage, image spacing, and responsive markup risks. Local files must use absolute paths and contain a valid JPEG, PNG, GIF, WebP, or AVIF signature. Existing WordPress media IDs are resolved with read-only requests before any upload begins. SVG and extension-spoofed files are rejected.
 
-## Rank Math
+## SEO providers
 
-Rank Math metadata is sent as WordPress post meta. Some sites do not expose these fields through REST. In that case the draft and media still save, and the command returns `rank_math_rest_unavailable` so the site owner can install a minimal permission-checked REST bridge.
+Payloads may select `auto`, `rank-math`, `yoast`, `aioseo`, or `none`. `auto` uses the first active supported provider reported by the bridge. `none`, or a site without a supported plugin, keeps the native WordPress title and excerpt as the search fallback.
 
-The optional, auditable bridge is included in [`wordpress-plugin/wp-draft-publisher-bridge`](wordpress-plugin/wp-draft-publisher-bridge). A ready-to-upload ZIP is built at `dist/draft-publisher-rest-bridge.zip`. Besides exposing the three SEO fields, the bridge checks draft status inside the same WordPress request used for an update, closing the status-change race that a client-only preflight cannot eliminate. See [`wordpress-plugin/README.md`](wordpress-plugin/README.md) for installation.
+Bridge 1.6.0 writes Rank Math and Yoast through their post-meta fields and AIOSEO through its post model, then reads the selected provider values back even when multiple SEO plugins are active. The optional, auditable bridge is included in [`wordpress-plugin/wp-draft-publisher-bridge`](wordpress-plugin/wp-draft-publisher-bridge), with a ready-to-upload ZIP at `dist/draft-publisher-rest-bridge.zip`. It also checks draft status and the REST-normalized modification time inside the same WordPress request used for an update, closing the status-change race that a client-only preflight cannot eliminate. See [`wordpress-plugin/README.md`](wordpress-plugin/README.md) for installation.
 
 Build the ZIP from source with:
 
@@ -203,4 +269,4 @@ MIT
 
 ## Trademarks
 
-This is an independent community project. It is not affiliated with or endorsed by the WordPress Foundation, Automattic, Rank Math, or OpenAI. WordPress and related marks belong to their respective owners; references in this repository describe compatibility only.
+This is an independent community project. It is not affiliated with or endorsed by the WordPress Foundation, Automattic, Rank Math, Yoast, AIOSEO, or OpenAI. WordPress and related marks belong to their respective owners; references in this repository describe compatibility only.

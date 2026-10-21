@@ -11,6 +11,19 @@ Apply the site's own editorial guide when one exists. Otherwise:
 - Cite direct official guidance pages for changing or consequential facts. Do not add generic date-stamped editorial boilerplate when the date does not help the reader.
 - End with a concise practical recap.
 - Use an accurate SEO title, a useful meta description, and one natural focus keyword.
-- Choose the image count from the article's length and complexity. Use inline images only when they clarify the surrounding section, distribute them through long guides, and keep the full image set visually cohesive.
+- Count visible body characters after removing HTML tags, image markers, and whitespace. Unless the site profile or user requests another density, use the following minimums and record them in `image_policy`:
+
+| Visible body length | Featured | Inline | Total |
+| --- | ---: | ---: | ---: |
+| Up to 1,500 characters | 1 | 2 | 3 |
+| 1,501-2,499 characters | 1 | 3 | 4 |
+| 2,500-4,000 characters | 1 | 4 | 5 |
+| 4,001-5,500 characters | 1 | 5 | 6 |
+| Over 5,500 characters | 1 | 5, plus one per additional 1,500 characters | 6+ |
+
+- Give each image a purpose in the outline before generating or selecting it. A four-image inline sequence commonly covers orientation, comparison or calculation, action steps, and mistakes or a final checklist.
+- Place each image immediately after the content it explains. Do not place images back-to-back, cluster them near the opening, repeat the featured composition, or leave more than two substantial H2 sections without a visual when the selected length band calls for one.
+- Before saving, count `inline_images`, verify that every marker occurs exactly once, and keep `image_policy.minimum_total` and `image_policy.minimum_inline` equal to the selected minimums. After saving, confirm that the rendered draft contains the same number of inline figures.
+- Use descriptive alt text that states both the visible subject and its nearby purpose. Add a caption only when it supplies interpretation or an action reminder.
 - Unless the site's editorial guide requests another style, use a cohesive set of bright, premium, photorealistic editorial images with realistic materials, clean composition, and a strong subject that remains clear at mobile thumbnail size. Keep embedded text, letters, numbers, logos, and watermarks out of generated images by default.
 - Save as a draft.

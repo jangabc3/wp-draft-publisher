@@ -7,8 +7,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $resolvedDestination = [IO.Path]::GetFullPath($Destination)
 $skillsRoot = [IO.Path]::GetFullPath((Join-Path $HOME '.codex\skills'))
+$skillsPrefix = $skillsRoot.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
 
-if (-not $resolvedDestination.StartsWith($skillsRoot, [StringComparison]::OrdinalIgnoreCase)) {
+if (-not $resolvedDestination.StartsWith($skillsPrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Refusing to remove a directory outside the Codex skills folder.'
 }
 
@@ -24,6 +25,12 @@ else {
 
 if ($RemoveCredentials) {
     $credentialDirectory = Join-Path $env:LOCALAPPDATA 'WPDraftPublisher'
+    $resolvedCredentialDirectory = [IO.Path]::GetFullPath($credentialDirectory)
+    $localDataRoot = [IO.Path]::GetFullPath($env:LOCALAPPDATA)
+    $localDataPrefix = $localDataRoot.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    if (-not $resolvedCredentialDirectory.StartsWith($localDataPrefix, [StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($resolvedCredentialDirectory) -ne 'WPDraftPublisher') {
+        throw 'Refusing to remove an unexpected credential directory.'
+    }
     if (Test-Path -LiteralPath $credentialDirectory) {
         if ($PSCmdlet.ShouldProcess($credentialDirectory, 'Remove encrypted WordPress credentials')) {
             Remove-Item -LiteralPath $credentialDirectory -Recurse -Force

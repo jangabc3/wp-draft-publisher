@@ -26,6 +26,14 @@ class PluginSourceTests(unittest.TestCase):
         )
         self.assertTrue(all("\\" not in name for name in names))
 
+    def test_distribution_zip_matches_plugin_source(self):
+        archive = ROOT / "dist" / "draft-publisher-rest-bridge.zip"
+        source_root = ROOT / "wordpress-plugin" / "wp-draft-publisher-bridge"
+        with zipfile.ZipFile(archive) as package:
+            for filename in ("readme.txt", "wp-draft-publisher-bridge.php"):
+                packaged = package.read(f"draft-publisher-rest-bridge/{filename}")
+                self.assertEqual(packaged, (source_root / filename).read_bytes())
+
     def test_plugin_has_permission_checked_rank_math_fields_and_status_route(self):
         source = PLUGIN.read_text(encoding="utf-8")
         for field in ("rank_math_title", "rank_math_description", "rank_math_focus_keyword"):
@@ -35,11 +43,26 @@ class PluginSourceTests(unittest.TestCase):
         self.assertIn("'permission_callback' => 'wpdp_bridge_status_permission'", source)
         self.assertIn("wp-draft-publisher/v1", source)
 
+    def test_plugin_supports_three_seo_providers_and_wordpress_fallback(self):
+        source = PLUGIN.read_text(encoding="utf-8")
+        for provider in ("rank-math", "yoast", "aioseo", "wordpress"):
+            self.assertIn(provider, source)
+        for field in ("_yoast_wpseo_title", "_yoast_wpseo_metadesc", "_yoast_wpseo_focuskw"):
+            self.assertIn(field, source)
+        self.assertIn("AIOSEO\\\\Plugin\\\\Common\\\\Models\\\\Post", source)
+        self.assertIn("/posts/(?P<id>\\d+)/seo", source)
+        self.assertIn("wpdp_bridge_write_seo", source)
+        self.assertIn("'draft' !== get_post_status($post_id)", source)
+        self.assertIn("'seo_providers'", source)
+        self.assertIn("'active_seo_provider'", source)
+
     def test_plugin_has_atomic_draft_only_guard(self):
         source = PLUGIN.read_text(encoding="utf-8")
         self.assertIn("x-wpdp-draft-only", source)
         self.assertIn("x-wpdp-expected-modified-gmt", source)
         self.assertIn("post_modified_gmt", source)
+        self.assertIn("wpdp_bridge_rest_modified_gmt", source)
+        self.assertIn("mysql_to_rfc3339", source)
         self.assertIn("wpdp_post_changed_since_read", source)
         self.assertIn("wpdp_bridge_capture_snapshot", source)
         self.assertIn("/snapshots/(?P<snapshot_id>", source)
@@ -61,6 +84,21 @@ class PluginSourceTests(unittest.TestCase):
         self.assertIn("wpdp_bridge_record_activity", source)
         self.assertIn("add_management_page", source)
         self.assertNotIn("_wpdp_post_content", source)
+
+    def test_plugin_has_connection_activity_and_recovery_admin_screen(self):
+        for expected in (
+            "admin_menu", "Draft Publisher", "Server readiness", "Application Password",
+            "Connect Codex or Claude", "wpdp_bridge_recent_snapshots",
+            "admin_post_wpdp_restore_snapshot", "check_admin_referer",
+            "wpdp_bridge_restore_permission($request)",
+            "No publish endpoint is provided",
+        ):
+            self.assertIn(expected, PLUGIN.read_text(encoding="utf-8"))
+
+    def test_status_reports_site_metadata_for_connection_wizard(self):
+        source = PLUGIN.read_text(encoding="utf-8")
+        for field in ("site_name", "language", "wordpress_version", "home_url"):
+            self.assertIn("'" + field + "'", source)
 
 
 class BridgeDiagnosticsTests(unittest.TestCase):

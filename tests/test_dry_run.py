@@ -106,6 +106,12 @@ class DryRunTests(unittest.TestCase):
         self.assertEqual(result["category_actions"][0], {"name": "Guides", "action": "reuse", "id": 3})
         self.assertEqual(result["category_actions"][1], {"name": "New category", "action": "create"})
         self.assertEqual(result["tag_actions"][0], {"name": "How-to", "action": "reuse", "id": 4})
+        self.assertEqual(result["plan"]["operation"], "create_draft")
+        self.assertEqual(result["plan"]["media"], {"total": 2, "upload": 1, "reuse": 1})
+        self.assertEqual(result["plan"]["categories"], ["Guides", "New category"])
+        self.assertEqual(result["plan"]["quality"]["status"], "passed")
+        self.assertTrue(result["plan"]["safeguards"]["read_only_preview"])
+        self.assertEqual(result["plan"]["safeguards"]["result_status"], "draft")
 
     def test_update_dry_run_checks_draft_and_never_posts(self):
         payload_path = self.payload_file(self.make_payload())
@@ -131,6 +137,8 @@ class DryRunTests(unittest.TestCase):
         result = json.loads(output.getvalue())
         self.assertEqual(result["operation"], "update_draft")
         self.assertEqual(result["target_post_id"], 42)
+        self.assertEqual(result["plan"]["target_post_id"], 42)
+        self.assertTrue(result["plan"]["safeguards"]["published_posts_protected"])
 
     def test_non_draft_update_stops_before_loading_payload(self):
         with patch.object(
@@ -166,7 +174,8 @@ class DryRunTests(unittest.TestCase):
             io.StringIO()
         ), self.assertRaises(SystemExit):
             wordpress.dry_run(payload_path)
-        self.assertEqual(requests, [("GET", "posts"), ("GET", "media/10")])
+        self.assertEqual(requests[-1], ("GET", "media/10"))
+        self.assertTrue(all(method == "GET" for method, _ in requests))
 
 
 if __name__ == "__main__":

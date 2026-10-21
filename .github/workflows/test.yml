@@ -22,6 +22,31 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Check repository structure and documentation links
+        run: python scripts/check_repository.py
       - name: Lint WordPress bridge
         if: runner.os == 'Linux'
         run: php -l wordpress-plugin/wp-draft-publisher-bridge/wp-draft-publisher-bridge.php
+
+  wordpress-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: wordpress-5.6-php-7.4
+            wordpress-image: wordpress:5.6-php7.4-apache
+            scenario: core
+          - name: current-wordpress-php-8.3
+            wordpress-image: wordpress:php8.3-apache
+            scenario: all
+    name: integration (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Run disposable WordPress integration suite
+        shell: pwsh
+        run: ./scripts/run-integration.ps1 -WordPressImage '${{ matrix.wordpress-image }}' -Scenario '${{ matrix.scenario }}'
