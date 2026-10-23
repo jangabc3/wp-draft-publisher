@@ -18,12 +18,13 @@ SPEC.loader.exec_module(release_builder)
 
 class ReleaseTests(unittest.TestCase):
     def test_release_metadata_and_community_files_exist(self):
-        self.assertEqual((ROOT / "VERSION").read_text(encoding="utf-8").strip(), "1.0.0")
+        version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
         for filename in (
             "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "SUPPORT.md",
             "README.ko.md", ".github/workflows/release.yml",
             ".github/ISSUE_TEMPLATE/bug.yml", ".github/ISSUE_TEMPLATE/feature.yml",
-            "docs/RELEASE_NOTES_v1.0.0.md",
+            f"docs/RELEASE_NOTES_v{version}.md",
             "scripts/test-release-package.ps1", "scripts/check-release-candidate.ps1",
         ):
             self.assertTrue((ROOT / filename).is_file(), filename)
@@ -32,7 +33,8 @@ class ReleaseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix=".wpdp-release-test-", dir=ROOT) as temporary:
             output = Path(temporary)
             result = release_builder.build(output)
-            package = output / "wp-draft-publisher-v1.0.0.zip"
+            version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+            package = output / f"wp-draft-publisher-v{version}.zip"
             with zipfile.ZipFile(package) as archive:
                 names = archive.namelist()
                 self.assertIn("wp-draft-publisher/install.cmd", names)

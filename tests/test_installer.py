@@ -19,7 +19,9 @@ class InstallerTests(unittest.TestCase):
         text = (ROOT / "install.ps1").read_text(encoding="utf-8")
         self.assertIn("$staging", text)
         self.assertIn("$backup", text)
-        self.assertIn("Move-Item -LiteralPath", text)
+        self.assertIn("Move-DirectoryPortable", text)
+        self.assertIn("catch [System.IO.IOException]", text)
+        self.assertIn("Get-ChildItem -LiteralPath $Source -Force", text)
         self.assertIn("'integration'", text)
         self.assertIn("'tests'", text)
 
@@ -56,7 +58,7 @@ class InstallerTests(unittest.TestCase):
 
     def test_baseline_command_covers_parse_compile_tests_build_and_public_scan(self):
         baseline = (ROOT / "scripts" / "check-baseline.ps1").read_text(encoding="utf-8")
-        for expected in ("ParseFile", "compileall", "build_plugin.py", "unittest discover", "check_repository.py", "check_public_release.py"):
+        for expected in ("ParseFile", "check_python_syntax.py", "build_plugin.py", "unittest discover", "check_repository.py", "check_public_release.py"):
             self.assertIn(expected, baseline)
 
     def test_command_help_is_available_before_credentials_exist(self):

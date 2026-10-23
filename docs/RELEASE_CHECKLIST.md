@@ -5,8 +5,8 @@
 - [x] `VERSION` contains the intended semantic version.
 - [x] `CHANGELOG.md` contains the release date and user-visible changes.
 - [x] Unit tests pass on Python 3.9 and 3.13 on Windows and Ubuntu.
-- [x] WordPress 5.6/PHP 7.4 core integration test passes.
-- [x] Current WordPress/PHP 8.3 full integration test passes.
+- [ ] WordPress 5.6/PHP 7.4 core integration test passes for the release commit.
+- [ ] Current WordPress/PHP 8.3 full integration test passes for the release commit.
 - [x] PHP lint passes for the bridge plugin.
 - [x] `git diff --check` passes.
 
@@ -34,7 +34,7 @@
 
 ## Publish
 
-- [x] Push the release commit.
+- [ ] Push the release commit.
 - [ ] Create and push the signed or annotated version tag.
 - [ ] Wait for the release workflow and integration matrix to pass.
 - [ ] Review the generated GitHub Release and attached files.

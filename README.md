@@ -4,7 +4,7 @@ A small Codex skill for creating image-rich WordPress drafts through the officia
 
 [한국어 안내](README.ko.md) · [Installation](docs/INSTALL.md) · [User scenarios](docs/USER-SCENARIOS.md) · [Security](SECURITY.md)
 
-Current project version: **1.0.0**. The WordPress bridge is version **1.6.0** and follows its own compatibility version.
+Current project version: **1.0.1**. The WordPress bridge is version **1.6.0** and follows its own compatibility version.
 
 Local release readiness and the GitHub-only final gates are recorded in [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md). Maintainers can run the complete pre-release check with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release-candidate.ps1`.
 
@@ -41,7 +41,7 @@ The command intentionally has no publish operation.
 
 ## Install on Windows
 
-Download `wp-draft-publisher-v1.0.0.zip` from GitHub Releases, verify its SHA-256 value against `SHA256SUMS.txt`, extract it, then double-click `install.cmd`. The installer:
+Download `wp-draft-publisher-v1.0.1.zip` from GitHub Releases, verify its SHA-256 value against `SHA256SUMS.txt`, extract it, then double-click `install.cmd`. The installer:
 
 - checks for Python 3.9 or later;
 - runs the bundled safety tests;

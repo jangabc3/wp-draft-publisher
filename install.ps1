@@ -47,6 +47,38 @@ function Copy-SkillFiles([string]$From, [string]$To) {
         Remove-Item -Recurse -Force
 }
 
+function Move-DirectoryPortable {
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$Destination
+    )
+
+    try {
+        Move-Item -LiteralPath $Source -Destination $Destination -ErrorAction Stop
+        return
+    }
+    catch [System.IO.IOException] {
+        # A Windows directory rename can fail when a path traverses a junction
+        # whose target is on another volume. A guarded copy keeps redirected
+        # user profiles and D:-backed workspaces installable.
+        if (Test-Path -LiteralPath $Destination) {
+            Remove-Item -LiteralPath $Destination -Recurse -Force
+        }
+        try {
+            New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+            Get-ChildItem -LiteralPath $Source -Force |
+                Copy-Item -Destination $Destination -Recurse -Force
+            Remove-Item -LiteralPath $Source -Recurse -Force
+        }
+        catch {
+            if (Test-Path -LiteralPath $Destination) {
+                Remove-Item -LiteralPath $Destination -Recurse -Force
+            }
+            throw
+        }
+    }
+}
+
 $python = Get-PythonCommand
 Assert-PythonVersion $python
 Write-Host "[INFO] WP Draft Publisher $projectVersion"
@@ -76,17 +108,20 @@ try {
     if ($PSCmdlet.ShouldProcess($resolvedDestination, 'Install WP Draft Publisher skill')) {
         if (Test-Path -LiteralPath $resolvedDestination) {
             $backup = '{0}.backup-{1}' -f $resolvedDestination, (Get-Date -Format 'yyyyMMdd-HHmmss')
-            Move-Item -LiteralPath $resolvedDestination -Destination $backup
+            Move-DirectoryPortable -Source $resolvedDestination -Destination $backup
         }
-        Move-Item -LiteralPath $staging -Destination $resolvedDestination
+        Move-DirectoryPortable -Source $staging -Destination $resolvedDestination
     }
 }
 catch {
     if (Test-Path -LiteralPath $staging) {
         Remove-Item -LiteralPath $staging -Recurse -Force
     }
-    if ($backup -and -not (Test-Path -LiteralPath $resolvedDestination) -and (Test-Path -LiteralPath $backup)) {
-        Move-Item -LiteralPath $backup -Destination $resolvedDestination
+    if ($backup -and (Test-Path -LiteralPath $backup)) {
+        if (Test-Path -LiteralPath $resolvedDestination) {
+            Remove-Item -LiteralPath $resolvedDestination -Recurse -Force
+        }
+        Move-DirectoryPortable -Source $backup -Destination $resolvedDestination
     }
     throw
 }

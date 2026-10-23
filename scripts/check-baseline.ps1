@@ -32,9 +32,9 @@ foreach ($relativePath in $powerShellFiles) {
     if ($errors.Count) { throw "PowerShell parse failed: $relativePath - $($errors[0].Message)" }
 }
 
-Write-Host '[2/6] Compiling Python sources...'
-& $python -m compileall -q (Join-Path $root 'scripts') (Join-Path $root 'tests')
-if ($LASTEXITCODE -ne 0) { throw 'Python compilation failed.' }
+Write-Host '[2/6] Parsing Python sources without writing bytecode...'
+& $python (Join-Path $PSScriptRoot 'check_python_syntax.py')
+if ($LASTEXITCODE -ne 0) { throw 'Python syntax validation failed.' }
 
 if (-not $SkipPluginBuild) {
 Write-Host '[3/6] Building the deterministic WordPress plugin ZIP...'

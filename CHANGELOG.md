@@ -2,6 +2,13 @@
 
 All notable changes to WP Draft Publisher are recorded here. This project follows [Semantic Versioning](https://semver.org/).
 
+## 1.0.1 - 2026-10-23
+
+### Fixed
+
+- Install successfully when the Codex skills directory or source workspace traverses a Windows junction backed by another drive.
+- Restore a previous installation safely if the portable copy fallback cannot complete.
+
 ## 1.0.0 - 2026-10-21
 
 ### Added
