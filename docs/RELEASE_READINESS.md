@@ -32,10 +32,10 @@ Use `-SkipIntegration` only for a repeat when Docker is unavailable and the chan
 
 ## Required GitHub gates
 
-1. Push the v1.0.1 release commit.
-2. Confirm the Windows/Ubuntu Python matrix and both live WordPress integration jobs pass.
-3. Create and push the annotated `v1.0.1` tag.
-4. Confirm the release workflow, including the clean Windows package job, passes.
-5. Download the public v1.0.1 artifacts, verify their checksums, and repeat the Korean clean installation once from the public URLs.
+The v1.0.1 release commit passed the Windows/Ubuntu Python matrix and both live WordPress integration jobs in [GitHub Actions run 39959361223](https://github.com/jangabc3/wp-draft-publisher/actions/runs/39959361223).
+
+1. Create and push the annotated `v1.0.1` tag.
+2. Confirm the release workflow, including the clean Windows package job, passes.
+3. Download the public v1.0.1 artifacts, verify their checksums, and repeat the Korean clean installation once from the public URLs.
 
 Do not keep the release published when any required gate fails. Fix the source, rebuild, and rerun the complete gate instead of replacing individual ZIP files by hand.
