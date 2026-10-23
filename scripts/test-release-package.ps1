@@ -33,6 +33,12 @@ try {
     }
 
     New-Item -ItemType Directory -Force -Path $fakeLocalAppData | Out-Null
+    New-Item -ItemType Directory -Force -Path $destination | Out-Null
+    Set-Content -LiteralPath (Join-Path $destination 'SKILL.md') -Value 'previous installation'
+    Set-Content -LiteralPath (Join-Path $destination 'upgrade-marker.txt') -Value 'preserve in backup'
+    $legacyBackup = $destination + '.backup-legacy'
+    New-Item -ItemType Directory -Force -Path $legacyBackup | Out-Null
+    Set-Content -LiteralPath (Join-Path $legacyBackup 'SKILL.md') -Value 'legacy backup'
     $previousUserProfile = $env:USERPROFILE
     $previousLocalAppData = $env:LOCALAPPDATA
     $previousHome = $env:HOME
@@ -59,6 +65,15 @@ try {
             throw "Development directory leaked into the installed skill: $excluded"
         }
     }
+    $skillParent = Split-Path -Parent $destination
+    if (Get-ChildItem -LiteralPath $skillParent -Directory -Filter 'wp-draft-publisher.backup-*' -ErrorAction SilentlyContinue) {
+        throw 'The installer left a discoverable backup beside the live skill.'
+    }
+    $installBackupRoot = Join-Path $fakeLocalAppData 'WPDraftPublisher\install-backups'
+    $upgradeMarker = Get-ChildItem -LiteralPath $installBackupRoot -Recurse -File -Filter 'upgrade-marker.txt' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $upgradeMarker) { throw 'The installer did not preserve the previous installation outside skill discovery.' }
+    $migratedLegacy = Get-ChildItem -LiteralPath $installBackupRoot -Directory -Filter 'wp-draft-publisher.backup-legacy*' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $migratedLegacy) { throw 'The installer did not migrate a legacy discoverable backup.' }
     $privateNames = @('credentials.json', '.env', '__pycache__')
     $leaked = Get-ChildItem -LiteralPath $destination -Recurse -Force |
         Where-Object { $_.Name -in $privateNames } |

@@ -18,7 +18,7 @@ WordPress 관리자에서 **사용자 → 새로 추가**로 이동합니다. �
 
 ## 3. 프로그램 설치하기
 
-1. GitHub Releases에서 `wp-draft-publisher-v1.0.2.zip`을 내려받습니다.
+1. GitHub Releases에서 `wp-draft-publisher-v1.0.3.zip`을 내려받습니다.
 2. ZIP의 압축을 풉니다.
 3. 폴더 안의 `install.cmd`를 두 번 클릭합니다.
 4. WordPress 주소는 `https://example.com`처럼 입력합니다.

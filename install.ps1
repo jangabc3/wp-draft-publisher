@@ -94,6 +94,11 @@ $parent = Split-Path -Parent $resolvedDestination
 $leaf = Split-Path -Leaf $resolvedDestination
 New-Item -ItemType Directory -Force -Path $parent | Out-Null
 $staging = Join-Path $parent ('.{0}.install-{1}' -f $leaf, [Guid]::NewGuid().ToString('N'))
+$localDataRoot = [Environment]::GetEnvironmentVariable('LOCALAPPDATA')
+if (-not $localDataRoot) {
+    $localDataRoot = [Environment]::GetFolderPath('LocalApplicationData')
+}
+$backupRoot = Join-Path $localDataRoot 'WPDraftPublisher\install-backups'
 $backup = $null
 
 try {
@@ -107,10 +112,23 @@ try {
 
     if ($PSCmdlet.ShouldProcess($resolvedDestination, 'Install WP Draft Publisher skill')) {
         if (Test-Path -LiteralPath $resolvedDestination) {
-            $backup = '{0}.backup-{1}' -f $resolvedDestination, (Get-Date -Format 'yyyyMMdd-HHmmss')
+            New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
+            $backup = Join-Path $backupRoot ('{0}-{1}' -f $leaf, (Get-Date -Format 'yyyyMMdd-HHmmss'))
             Move-DirectoryPortable -Source $resolvedDestination -Destination $backup
         }
         Move-DirectoryPortable -Source $staging -Destination $resolvedDestination
+
+        # Versions through 1.0.2 kept upgrade backups beside the live skill.
+        # Codex discovers every SKILL.md below .codex\skills, so those folders
+        # appeared as duplicate skills. Move legacy backups outside discovery.
+        foreach ($legacyBackup in Get-ChildItem -LiteralPath $parent -Directory -Filter ($leaf + '.backup-*') -ErrorAction SilentlyContinue) {
+            New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
+            $legacyDestination = Join-Path $backupRoot $legacyBackup.Name
+            if (Test-Path -LiteralPath $legacyDestination) {
+                $legacyDestination += '-' + [Guid]::NewGuid().ToString('N')
+            }
+            Move-DirectoryPortable -Source $legacyBackup.FullName -Destination $legacyDestination
+        }
     }
 }
 catch {

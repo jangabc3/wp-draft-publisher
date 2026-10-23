@@ -5,7 +5,7 @@
 1. Install Python 3.9 or later and confirm `python --version` works.
 2. In WordPress, create a dedicated user with only the permissions needed to create posts and upload media.
 3. Open that user's profile and create an Application Password named `WP Draft Publisher`.
-4. Download `wp-draft-publisher-v1.0.2.zip` from GitHub Releases and extract it.
+4. Download `wp-draft-publisher-v1.0.3.zip` from GitHub Releases and extract it.
 5. Double-click `install.cmd`.
 6. Enter the HTTPS WordPress URL, username, and Application Password when prompted.
 7. Wait while the wizard verifies authentication, posts, media, taxonomy, and bridge access before it stores the encrypted credential.

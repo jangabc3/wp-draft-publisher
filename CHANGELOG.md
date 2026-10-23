@@ -2,6 +2,14 @@
 
 All notable changes to WP Draft Publisher are recorded here. This project follows [Semantic Versioning](https://semver.org/).
 
+## 1.0.3 - 2026-10-24
+
+### Fixed
+
+- Store upgrade backups outside `.codex/skills` so Codex does not discover the previous installation as a duplicate skill.
+- Migrate legacy `wp-draft-publisher.backup-*` folders out of the skill discovery directory during upgrade.
+- Exercise real upgrade and legacy-backup migration paths in the packaged Windows acceptance test.
+
 ## 1.0.2 - 2026-10-24
 
 ### Fixed
