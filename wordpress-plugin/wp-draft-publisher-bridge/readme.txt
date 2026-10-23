@@ -2,7 +2,7 @@
 Contributors: wp-draft-publisher
 Requires at least: 5.6
 Requires PHP: 7.4
-Stable tag: 1.6.0
+Stable tag: 1.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,6 +19,10 @@ This companion plugin provides permission-checked SEO reads and draft-only write
 3. Confirm that the bridge and atomic draft guard are reported as available.
 
 == Changelog ==
+
+= 1.6.1 =
+
+* Normalize a snapshot's captured modification time when WordPress stores the raw GMT field as the zero date.
 
 = 1.6.0 =
 

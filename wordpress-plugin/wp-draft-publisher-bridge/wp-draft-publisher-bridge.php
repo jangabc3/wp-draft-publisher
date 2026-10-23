@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Draft Publisher REST Bridge
  * Description: Adds multi-plugin SEO fields, guarded draft updates, recovery snapshots, and privacy-safe activity records for WP Draft Publisher.
- * Version: 1.6.0
+ * Version: 1.6.1
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPL-2.0-or-later
@@ -12,7 +12,7 @@
 
 if (!defined('ABSPATH')) { exit; }
 
-define('WPDP_BRIDGE_VERSION', '1.6.0');
+define('WPDP_BRIDGE_VERSION', '1.6.1');
 define('WPDP_SNAPSHOT_POST_TYPE', 'wpdp_snapshot');
 define('WPDP_SNAPSHOT_LIMIT', 20);
 define('WPDP_ACTIVITY_POST_TYPE', 'wpdp_activity');
@@ -146,7 +146,7 @@ function wpdp_bridge_snapshot_payload($post_id) {
     return array(
         'schema_version' => 2,
         'post_id' => (int) $post_id,
-        'captured_modified_gmt' => $post->post_modified_gmt,
+        'captured_modified_gmt' => wpdp_bridge_rest_modified_gmt($post_id),
         'title' => $post->post_title,
         'content' => $post->post_content,
         'excerpt' => $post->post_excerpt,

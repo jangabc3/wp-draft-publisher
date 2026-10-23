@@ -2,6 +2,17 @@
 
 All notable changes to WP Draft Publisher are recorded here. This project follows [Semantic Versioning](https://semver.org/).
 
+## 1.0.2 - 2026-10-24
+
+### Fixed
+
+- Normalize recovery snapshot modification times when WordPress exposes a raw GMT zero date.
+- Verify in the live WordPress test that every update snapshot records a usable modification timestamp.
+
+### Changed
+
+- Update the bundled Draft Publisher REST Bridge to 1.6.1.
+
 ## 1.0.1 - 2026-10-23
 
 ### Fixed

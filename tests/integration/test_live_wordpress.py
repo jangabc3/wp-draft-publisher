@@ -132,6 +132,10 @@ class CoreIntegrationTests(LiveWordPressBase):
         updated = call_json(wordpress.save_draft, updated_path, post_id)
         self.assertEqual(updated["action"], "updated_draft")
         self.assertIsInstance(updated["snapshot_id"], int)
+        snapshots = wordpress.rest_api("GET", f"wp-draft-publisher/v1/posts/{post_id}/snapshots")
+        captured = snapshots["snapshots"][0]["captured_modified_gmt"]
+        self.assertTrue(captured)
+        self.assertNotEqual(captured, "0000-00-00 00:00:00")
         restored = call_json(wordpress.restore_snapshot, updated["snapshot_id"])
         self.assertTrue(restored["ok"])
         after_restore = wordpress.api("GET", f"posts/{post_id}", query={"context": "edit", "_fields": "id,title,status"})

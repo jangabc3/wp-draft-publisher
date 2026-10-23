@@ -34,7 +34,7 @@ Codex, Claude, Cursor 같은 AI와 WordPress를 연결해 조사한 글을 **검
 
 ### 설치
 
-1. GitHub Releases에서 `wp-draft-publisher-v1.0.1.zip`을 내려받아 압축을 풉니다.
+1. GitHub Releases에서 `wp-draft-publisher-v1.0.2.zip`을 내려받아 압축을 풉니다.
 2. 폴더 안의 `install.cmd`를 두 번 클릭합니다.
 3. 안내에 따라 WordPress 주소, 사용자 이름, 애플리케이션 비밀번호를 입력합니다. 연결 검사가 성공하기 전에는 비밀번호를 저장하지 않습니다.
 4. 자동 감지된 사이트 언어, 카테고리, SEO 플러그인과 계정 권한을 확인합니다.

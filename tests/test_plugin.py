@@ -66,6 +66,7 @@ class PluginSourceTests(unittest.TestCase):
         self.assertIn("mysql_to_rfc3339", source)
         self.assertIn("wpdp_post_changed_since_read", source)
         self.assertIn("wpdp_bridge_capture_snapshot", source)
+        self.assertIn("'captured_modified_gmt' => wpdp_bridge_rest_modified_gmt($post_id)", source)
         self.assertIn("/snapshots/(?P<snapshot_id>", source)
         self.assertIn("wpdp_bridge_restore_snapshot", source)
         self.assertIn("WPDP_SNAPSHOT_LIMIT", source)

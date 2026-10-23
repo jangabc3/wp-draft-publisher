@@ -4,7 +4,7 @@ A small Codex skill for creating image-rich WordPress drafts through the officia
 
 [한국어 안내](README.ko.md) · [Installation](docs/INSTALL.md) · [User scenarios](docs/USER-SCENARIOS.md) · [Security](SECURITY.md)
 
-Current project version: **1.0.1**. The WordPress bridge is version **1.6.0** and follows its own compatibility version.
+Current project version: **1.0.2**. The WordPress bridge is version **1.6.1** and follows its own compatibility version.
 
 Local release readiness and the GitHub-only final gates are recorded in [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md). Maintainers can run the complete pre-release check with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-release-candidate.ps1`.
 
@@ -41,7 +41,7 @@ The command intentionally has no publish operation.
 
 ## Install on Windows
 
-Download `wp-draft-publisher-v1.0.1.zip` from GitHub Releases, verify its SHA-256 value against `SHA256SUMS.txt`, extract it, then double-click `install.cmd`. The installer:
+Download `wp-draft-publisher-v1.0.2.zip` from GitHub Releases, verify its SHA-256 value against `SHA256SUMS.txt`, extract it, then double-click `install.cmd`. The installer:
 
 - checks for Python 3.9 or later;
 - runs the bundled safety tests;
@@ -227,7 +227,7 @@ Maintainers should complete [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST
 
 ### Real WordPress integration tests
 
-Docker tests start disposable MariaDB, WordPress, WP-CLI, and HTTPS reverse-proxy containers. They install WordPress, activate bridge 1.6.0, create a restricted editor and Application Password, and test the real REST boundary.
+Docker tests start disposable MariaDB, WordPress, WP-CLI, and HTTPS reverse-proxy containers. They install WordPress, activate bridge 1.6.1, create a restricted editor and Application Password, and test the real REST boundary.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-integration.ps1
@@ -245,7 +245,7 @@ Before uploading media or creating taxonomy terms, the helper validates required
 
 Payloads may select `auto`, `rank-math`, `yoast`, `aioseo`, or `none`. `auto` uses the first active supported provider reported by the bridge. `none`, or a site without a supported plugin, keeps the native WordPress title and excerpt as the search fallback.
 
-Bridge 1.6.0 writes Rank Math and Yoast through their post-meta fields and AIOSEO through its post model, then reads the selected provider values back even when multiple SEO plugins are active. The optional, auditable bridge is included in [`wordpress-plugin/wp-draft-publisher-bridge`](wordpress-plugin/wp-draft-publisher-bridge), with a ready-to-upload ZIP at `dist/draft-publisher-rest-bridge.zip`. It also checks draft status and the REST-normalized modification time inside the same WordPress request used for an update, closing the status-change race that a client-only preflight cannot eliminate. See [`wordpress-plugin/README.md`](wordpress-plugin/README.md) for installation.
+Bridge 1.6.1 writes Rank Math and Yoast through their post-meta fields and AIOSEO through its post model, then reads the selected provider values back even when multiple SEO plugins are active. The optional, auditable bridge is included in [`wordpress-plugin/wp-draft-publisher-bridge`](wordpress-plugin/wp-draft-publisher-bridge), with a ready-to-upload ZIP at `dist/draft-publisher-rest-bridge.zip`. It also checks draft status and the REST-normalized modification time inside the same WordPress request used for an update, closing the status-change race that a client-only preflight cannot eliminate. See [`wordpress-plugin/README.md`](wordpress-plugin/README.md) for installation.
 
 Build the ZIP from source with:
 
